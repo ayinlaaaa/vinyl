@@ -1,3 +1,5 @@
+import { buildExternalId, type NewListeningRow } from "../listening";
+
 export interface AppleMusicTrack {
   id: string;
   type: string;
@@ -37,27 +39,29 @@ export async function getRecentlyPlayed(developerToken: string, musicUserToken: 
   return data.data as AppleMusicTrack[];
 }
 
-export function normalizeAppleTrack(track: AppleMusicTrack) {
+/**
+ * IMPORTANT LIMITATION: Apple's `me/recent/played/tracks` endpoint returns an ordered
+ * list of recently played songs but NO play timestamps and NO play counts. We therefore
+ * cannot record real listening events from it.
+ *
+ * What we do instead: record each track at most once per (track, sync day). `playedAt`
+ * is the sync time and is an ESTIMATE – the UI must label Apple Music data accordingly.
+ */
+export function normalizeAppleTrack(track: AppleMusicTrack, userId: string, syncedAt: Date): NewListeningRow {
   const attr = track.attributes;
-  // Apple Music artwork URL uses {w} and {h} as placeholders
-  const albumArt = attr.artwork?.url
-    ?.replace('{w}', '400')
-    ?.replace('{h}', '400') || null;
-  
+  const albumArt = attr.artwork?.url?.replace("{w}", "400")?.replace("{h}", "400") || null;
+  const day = syncedAt.toISOString().slice(0, 10);
+
   return {
+    userId,
+    provider: "apple",
     trackName: attr.name,
     artistName: attr.artistName,
-    albumName: attr.albumName,
+    albumName: attr.albumName || null,
     albumArtUrl: albumArt,
-    playedAt: new Date(), // Apple Music API recent tracks doesn't always provide a precise playedAt timestamp in the attributes, 
-                           // we might need to rely on the order or check for other fields.
-                           // Actually, for "recent", it's usually current time for the sync.
-    durationMs: attr.durationInMillis || 0,
-    externalId: `apple-${track.id}-${Date.now()}`.toLowerCase(), // Since we don't have a timestamp, we have to be careful with duplicates.
-                                                                // Usually, id is static, but we sync "recent".
-    metadata: {
-      provider: "apple",
-      appleId: track.id,
-    }
+    playedAt: syncedAt,
+    durationMs: attr.durationInMillis ?? null,
+    externalId: buildExternalId("apple", [day, track.id]),
+    metadata: { appleId: track.id, timestampEstimated: true },
   };
 }

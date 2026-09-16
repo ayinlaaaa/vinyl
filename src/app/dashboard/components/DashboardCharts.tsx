@@ -2,9 +2,9 @@
 
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { TrendingUp } from "lucide-react";
-import { getStats } from "@/lib/mock-data";
+import type { ListeningStats } from "@/lib/analytics";
 
-export default function DashboardCharts({ stats }: { stats: ReturnType<typeof getStats> }) {
+export default function DashboardCharts({ stats }: { stats: ListeningStats }) {
   return (
     <div className="lg:col-span-2 bg-secondary/30 border border-border p-8 space-y-8">
       <div className="flex items-center justify-between">
@@ -12,14 +12,11 @@ export default function DashboardCharts({ stats }: { stats: ReturnType<typeof ge
           <TrendingUp className="w-5 h-5 text-muted-foreground" />
           Listening Velocity
         </h3>
-        <div className="flex gap-4">
-           <button className="text-[10px] uppercase tracking-widest font-bold border-b-2 border-primary pb-1">Week</button>
-           <button className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground hover:text-foreground pb-1">Month</button>
-        </div>
+        <p className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Plays by weekday</p>
       </div>
       <div className="h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={stats.chartData}>
+          <AreaChart data={stats.weekdayActivity}>
             <defs>
               <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="currentColor" stopOpacity={0.1}/>

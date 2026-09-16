@@ -1,35 +1,29 @@
 import { getPublicRecap } from "@/app/actions/recaps";
 import WrappedStory from "@/app/dashboard/wrapped/WrappedStory";
 import { notFound } from "next/navigation";
-import { WrappedData } from "@/lib/wrapped-service";
-import { Metadata } from "next";
+import type { WrappedData } from "@/lib/wrapped-service";
+import type { Metadata } from "next";
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const recap = await getPublicRecap(params.id);
-  if (!recap) return { title: "Recap Not Found" };
+// In Next.js 15+, dynamic route params arrive as a Promise and must be awaited.
+type Props = { params: Promise<{ id: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const recap = await getPublicRecap(id);
+  if (!recap) return { title: "Recap Not Found | Vinyl" };
 
   const data = recap.data as unknown as WrappedData;
   return {
     title: `${recap.title} | Vinyl Recap`,
-    description: `Check out my ${recap.title} music recap on Vinyl. Total ${data.totalMinutes.toLocaleString()} minutes listened!`,
-    openGraph: {
-      images: [
-        {
-          url: "/api/og/recap", // Hypothetical OG image endpoint
-          width: 1200,
-          height: 630,
-        },
-      ],
-    },
+    description: `${data.totalPlays.toLocaleString()} plays across ${data.uniqueArtists} artists. A ${recap.title} listening recap on Vinyl.`,
   };
 }
 
-export default async function PublicRecapPage({ params }: { params: { id: string } }) {
-  const recap = await getPublicRecap(params.id);
+export default async function PublicRecapPage({ params }: Props) {
+  const { id } = await params;
+  const recap = await getPublicRecap(id);
 
-  if (!recap) {
-    notFound();
-  }
+  if (!recap) notFound();
 
   return (
     <main className="min-h-screen bg-background">

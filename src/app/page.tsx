@@ -32,16 +32,16 @@ export default function LandingPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link 
-                  href="/auth/signup" 
+                  href="/dashboard" 
                   className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-primary text-primary-foreground rounded-none text-lg font-medium hover:bg-primary/90 transition-colors"
                 >
                   Start your collection <ArrowRight className="w-5 h-5" />
                 </Link>
                 <Link 
-                  href="/demo" 
+                  href="/dashboard/wrapped" 
                   className="inline-flex items-center justify-center gap-2 px-8 py-4 border border-border text-lg font-medium hover:bg-secondary transition-colors"
                 >
-                  View live demo
+                  View your recap
                 </Link>
               </div>
             </div>
@@ -96,7 +96,7 @@ export default function LandingPage() {
         <section className="py-32 px-6 md:px-12 border-y border-border">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-3xl md:text-5xl font-playfair italic leading-tight">
-              "Music is the shorthand of emotion."
+              &ldquo;Music is the shorthand of emotion.&rdquo;
             </h2>
             <p className="mt-6 text-sm uppercase tracking-[0.3em] text-muted-foreground">— Leo Tolstoy</p>
           </div>

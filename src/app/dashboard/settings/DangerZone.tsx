@@ -1,13 +1,20 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Trash2, Loader2 } from "lucide-react";
 import { clearAllData } from "@/app/actions/import";
 
 export default function DangerZone() {
+  const router = useRouter();
+  const [isClearing, setIsClearing] = useState(false);
+
   const handleClearData = async () => {
-    if (!confirm("Are you sure? This will delete all your imported listening history.")) return;
+    if (!confirm("Delete ALL your listening history, saved recaps and provider connections? This cannot be undone.")) return;
+    setIsClearing(true);
     await clearAllData();
-    alert("All data cleared.");
+    setIsClearing(false);
+    router.refresh();
   };
 
   return (
@@ -19,10 +26,12 @@ export default function DangerZone() {
       <p className="text-sm text-muted-foreground">
         Permanently delete all your listening history and connected accounts. This action cannot be undone.
       </p>
-      <button 
+      <button
         onClick={handleClearData}
-        className="px-6 py-3 bg-rose-500 text-white text-[10px] uppercase tracking-widest font-bold hover:bg-rose-600 transition-colors"
+        disabled={isClearing}
+        className="px-6 py-3 bg-rose-500 text-white text-[10px] uppercase tracking-widest font-bold hover:bg-rose-600 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
       >
+        {isClearing && <Loader2 className="w-3 h-3 animate-spin" />}
         Clear All Data
       </button>
     </section>

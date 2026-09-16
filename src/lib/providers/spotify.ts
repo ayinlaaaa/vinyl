@@ -1,3 +1,5 @@
+import { buildExternalId, type NewListeningRow } from "../listening";
+
 export interface SpotifyTrack {
   track: {
     id: string;
@@ -30,27 +32,40 @@ export async function getRecentlyPlayed(accessToken: string, limit = 50) {
   return data.items as SpotifyTrack[];
 }
 
-export function normalizeSpotifyTrack(item: SpotifyTrack) {
+export function normalizeSpotifyTrack(item: SpotifyTrack, userId: string): NewListeningRow {
   const track = item.track;
-  const artistNames = track.artists.map(a => a.name).join(", ");
+  // Spotify lists the primary artist first; we keep only that one so an artist's
+  // play count is not split across every "feat." combination.
+  const artistName = track.artists[0]?.name ?? "Unknown Artist";
   const albumArt = track.album.images[0]?.url || null;
-  
+
   return {
+    userId,
+    provider: "spotify",
     trackName: track.name,
-    artistName: artistNames,
+    artistName,
     albumName: track.album.name,
     albumArtUrl: albumArt,
     playedAt: new Date(item.played_at),
     durationMs: track.duration_ms,
-    externalId: `spotify-${item.played_at}-${track.id}`.toLowerCase(),
+    externalId: buildExternalId("spotify", [item.played_at, track.id]),
     metadata: {
-      provider: "spotify",
       trackId: track.id,
-    }
+      allArtists: track.artists.map((a) => a.name),
+    },
   };
 }
 
-export async function refreshSpotifyToken(refreshToken: string) {
+export interface SpotifyTokenResponse {
+  access_token: string;
+  token_type: string;
+  scope: string;
+  /** Lifetime in SECONDS from now (Spotify never returns an absolute `expires_at`). */
+  expires_in: number;
+  refresh_token?: string;
+}
+
+export async function refreshSpotifyToken(refreshToken: string): Promise<SpotifyTokenResponse> {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
 
@@ -74,5 +89,5 @@ export async function refreshSpotifyToken(refreshToken: string) {
     throw new Error("Failed to refresh Spotify token");
   }
 
-  return await response.json();
+  return (await response.json()) as SpotifyTokenResponse;
 }

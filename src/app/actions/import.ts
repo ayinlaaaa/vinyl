@@ -1,55 +1,81 @@
 "use server";
 
 import { db } from "@/db";
-import { listeningHistory } from "@/db/schema";
+import { musicProviders, recaps } from "@/db/schema";
 import { getOrCreateDefaultUser } from "@/lib/db-utils";
+import { normalizeImport } from "@/lib/import-normalizer";
+import { deleteUserHistory, insertListeningRows } from "@/lib/history-repo";
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-export async function importListeningHistory(data: any[]) {
+export interface ImportResult {
+  success: boolean;
+  error?: string;
+  /** Rows written to the database. */
+  inserted: number;
+  /** Rows that were valid but already existed (from a previous import or sync). */
+  alreadyExisted: number;
+  /** Rows that appeared more than once within the uploaded file. */
+  duplicatesInFile: number;
+  /** Rows we could not use, with the first few reasons for the UI. */
+  rejected: number;
+  rejectionSamples: string[];
+}
+
+/** Hard cap so one upload cannot exhaust memory. Spotify exports are ~10k rows per file. */
+const MAX_RECORDS = 200_000;
+
+export async function importListeningHistory(data: unknown): Promise<ImportResult> {
+  const empty: ImportResult = {
+    success: false, inserted: 0, alreadyExisted: 0, duplicatesInFile: 0, rejected: 0, rejectionSamples: [],
+  };
+
   try {
-    const user = await getOrCreateDefaultUser();
-    
-    // Normalize and validate data
-    const records = data.map((item) => ({
-      userId: user.id,
-      provider: "import",
-      trackName: item.trackName || item.master_metadata_track_name || "Unknown Track",
-      artistName: item.artistName || item.master_metadata_album_artist_name || "Unknown Artist",
-      albumName: item.albumName || item.master_metadata_album_album_name || null,
-      playedAt: new Date(item.playedAt || item.ts),
-      durationMs: item.durationMs || item.ms_played || 0,
-      // Simple deduplication key: artist + track + timestamp
-      externalId: `${item.artistName}-${item.trackName}-${item.playedAt}`.toLowerCase(),
-    })).filter(r => !isNaN(r.playedAt.getTime()));
-
-    if (records.length === 0) return { success: false, error: "No valid records found" };
-
-    // Batch insert with a simple loop for now to handle potential duplicates 
-    // In a real app, we'd use a more sophisticated upsert or temp table
-    let importedCount = 0;
-    for (const record of records) {
-      try {
-        await db.insert(listeningHistory).values(record);
-        importedCount++;
-      } catch (e) {
-        // Skip duplicates (assuming unique constraint on externalId if we had one)
-        // For now, we'll just catch and continue
-      }
+    if (Array.isArray(data) && data.length > MAX_RECORDS) {
+      return { ...empty, error: `File has ${data.length} records; the limit is ${MAX_RECORDS}. Please split it.` };
     }
 
+    const user = await getOrCreateDefaultUser();
+    const { rows, rejected, duplicatesInFile } = normalizeImport(data, user.id);
+
+    if (rows.length === 0) {
+      const sample = rejected.slice(0, 3).map((r) => `row ${r.index}: ${r.reason}`);
+      return {
+        ...empty,
+        rejected: rejected.length,
+        duplicatesInFile,
+        rejectionSamples: sample,
+        error: "No usable listening records were found in this file.",
+      };
+    }
+
+    const inserted = await insertListeningRows(rows);
+
     revalidatePath("/dashboard");
-    return { success: true, count: importedCount };
+    return {
+      success: true,
+      inserted,
+      alreadyExisted: rows.length - inserted,
+      duplicatesInFile,
+      rejected: rejected.length,
+      rejectionSamples: rejected.slice(0, 3).map((r) => `row ${r.index}: ${r.reason}`),
+    };
   } catch (error) {
     console.error("Import error:", error);
-    return { success: false, error: "Failed to process data" };
+    return { ...empty, error: "The server could not process this file. Check the server logs for details." };
   }
 }
 
+/**
+ * Remove everything belonging to the current user: history, saved recaps and
+ * provider connections. Scoped by userId – never touches other users' rows.
+ */
 export async function clearAllData() {
   const user = await getOrCreateDefaultUser();
-  // In real Drizzle, we'd use delete(listeningHistory).where(eq(userId, user.id))
-  // For this sandbox, let's keep it simple
-  await db.execute(`DELETE FROM listening_history`);
+  await deleteUserHistory(user.id);
+  await db.delete(recaps).where(eq(recaps.userId, user.id));
+  await db.delete(musicProviders).where(eq(musicProviders.userId, user.id));
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/settings");
   return { success: true };
 }

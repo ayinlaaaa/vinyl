@@ -2,11 +2,19 @@
 
 import { useState } from "react";
 import { Upload, FileJson, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
-import { importListeningHistory } from "@/app/actions/import";
+import { importListeningHistory, type ImportResult } from "@/app/actions/import";
 
 export default function ImportSection() {
   const [isImporting, setIsImporting] = useState(false);
-  const [status, setStatus] = useState<{ type: "success" | "error", message: string } | null>(null);
+  const [status, setStatus] = useState<{ type: "success" | "error"; message: string; details?: string[] } | null>(null);
+
+  const describe = (result: ImportResult) => {
+    const details: string[] = [];
+    if (result.alreadyExisted > 0) details.push(`${result.alreadyExisted.toLocaleString()} already in your history (skipped)`);
+    if (result.duplicatesInFile > 0) details.push(`${result.duplicatesInFile.toLocaleString()} duplicated inside the file (skipped)`);
+    if (result.rejected > 0) details.push(`${result.rejected.toLocaleString()} unusable rows, e.g. ${result.rejectionSamples.join("; ")}`);
+    return details;
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -17,33 +25,50 @@ export default function ImportSection() {
 
     try {
       const text = await file.text();
-      const json = JSON.parse(text);
-      const result = await importListeningHistory(Array.isArray(json) ? json : [json]);
-      
-      if (result.success) {
-        setStatus({ type: "success", message: `Successfully imported ${result.count} tracks.` });
-      } else {
-        setStatus({ type: "error", message: result.error || "Import failed." });
+      let json: unknown;
+      try {
+        json = JSON.parse(text);
+      } catch {
+        setStatus({ type: "error", message: "That file is not valid JSON." });
+        return;
       }
-    } catch (err) {
-      setStatus({ type: "error", message: "Invalid JSON file." });
+      const result = await importListeningHistory(json);
+
+      if (result.success) {
+        setStatus({
+          type: "success",
+          message: `Imported ${result.inserted.toLocaleString()} new plays.`,
+          details: describe(result),
+        });
+      } else {
+        setStatus({ type: "error", message: result.error || "Import failed.", details: describe(result) });
+      }
+    } catch {
+      setStatus({ type: "error", message: "Upload failed. Please try again." });
     } finally {
       setIsImporting(false);
+      e.target.value = "";
     }
   };
 
   const generateSample = async () => {
     setIsImporting(true);
+    setStatus(null);
+    // Deterministic sample so re-running the button doesn't create "new" plays every time.
     const sample = Array.from({ length: 50 }).map((_, i) => ({
       trackName: ["Creep", "Humble", "Get Lucky", "Borderline", "Windowlicker"][i % 5],
       artistName: ["Radiohead", "Kendrick Lamar", "Daft Punk", "Tame Impala", "Aphex Twin"][i % 5],
-      ts: new Date(Date.now() - Math.random() * 1000000000).toISOString(),
-      ms_played: 180000 + Math.random() * 60000
+      ts: new Date(Date.UTC(2026, 0, 1, 12) + i * 7 * 3_600_000).toISOString(),
+      ms_played: 180000 + (i % 7) * 9000,
     }));
-    
+
     const result = await importListeningHistory(sample);
     setIsImporting(false);
-    if (result.success) setStatus({ type: "success", message: "Sample data generated." });
+    if (result.success) {
+      setStatus({ type: "success", message: `Sample data: ${result.inserted} plays added (labelled as imported).`, details: describe(result) });
+    } else {
+      setStatus({ type: "error", message: result.error || "Sample import failed.", details: describe(result) });
+    }
   };
 
   return (
@@ -53,8 +78,8 @@ export default function ImportSection() {
         <h3 className="text-xl font-playfair font-bold">Import History</h3>
       </div>
       <p className="text-sm text-muted-foreground leading-relaxed">
-        Upload your listening history from Spotify, Apple Music, or Last.fm. 
-        We currently support standard JSON exports.
+        Upload a Spotify data export (<span className="font-mono">Streaming_History_Audio_*.json</span> or{" "}
+        <span className="font-mono">StreamingHistory*.json</span>). Re-importing the same file is safe: plays you already have are skipped.
       </p>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -79,11 +104,18 @@ export default function ImportSection() {
       </div>
 
       {status && (
-        <div className={`flex items-center gap-3 p-4 text-sm font-medium ${
+        <div className={`p-4 text-sm font-medium space-y-2 ${
           status.type === "success" ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
-        }`}>
-          {status.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-          {status.message}
+        }`} role="status">
+          <div className="flex items-center gap-3">
+            {status.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+            {status.message}
+          </div>
+          {status.details && status.details.length > 0 && (
+            <ul className="text-xs font-mono opacity-80 pl-7 list-disc space-y-1">
+              {status.details.map((d) => <li key={d}>{d}</li>)}
+            </ul>
+          )}
         </div>
       )}
     </section>

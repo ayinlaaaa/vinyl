@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, integer, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, integer, jsonb, boolean, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -43,7 +43,13 @@ export const listeningHistory = pgTable("listening_history", {
   metadata: jsonb("metadata"),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  // One play per (user, externalId). This is what makes imports and syncs idempotent:
+  // re-running them hits ON CONFLICT DO NOTHING instead of doubling every statistic.
+  uniqueIndex("listening_history_user_external_idx").on(table.userId, table.externalId),
+  // Every dashboard query is "this user's plays, newest first".
+  index("listening_history_user_played_idx").on(table.userId, table.playedAt),
+]);
 
 export const recaps = pgTable("recaps", {
   id: uuid("id").primaryKey().defaultRandom(),

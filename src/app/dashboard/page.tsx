@@ -1,4 +1,5 @@
-import { Play, Music, Clock, Disc, ArrowUpRight, ArrowDownRight, Database, Globe, Lock } from "lucide-react";
+import { Play, Music, Clock, Disc, Database, Globe, Lock } from "lucide-react";
+import { formatMinutes } from "@/lib/analytics";
 import { getDashboardData } from "@/lib/data-service";
 import DashboardCharts from "@/app/dashboard/components/DashboardCharts";
 import Link from "next/link";
@@ -30,8 +31,16 @@ export default async function DashboardPage() {
           )}
         </div>
         <div className="flex gap-4">
-          <StatCard label="Total Plays" value={stats.totalPlays.toLocaleString()} trend="+12.5%" trendUp />
-          <StatCard label="Listening Time" value={`${stats.totalTime}h`} trend="-2.1%" trendUp={false} />
+          <StatCard label="Total Plays" value={stats.totalPlays.toLocaleString()} />
+          <StatCard
+            label="Listening Time"
+            value={formatMinutes(stats.totalMinutes)}
+            note={
+              stats.playsWithoutDuration > 0
+                ? `${stats.playsWithoutDuration.toLocaleString()} plays have no duration data; this is a minimum.`
+                : undefined
+            }
+          />
         </div>
       </div>
 
@@ -148,17 +157,12 @@ export default async function DashboardPage() {
   );
 }
 
-function StatCard({ label, value, trend, trendUp }: { label: string, value: string, trend: string, trendUp: boolean }) {
+function StatCard({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
-    <div className="bg-secondary/50 border border-border px-6 py-4 min-w-[160px]">
+    <div className="bg-secondary/50 border border-border px-6 py-4 min-w-[160px]" title={note}>
       <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{label}</p>
-      <div className="flex items-baseline gap-2">
-        <p className="text-2xl font-bold">{value}</p>
-        <span className={`text-[10px] font-bold flex items-center ${trendUp ? "text-emerald-500" : "text-rose-500"}`}>
-          {trendUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-          {trend}
-        </span>
-      </div>
+      <p className="text-2xl font-bold tabular-nums">{value}</p>
+      {note && <p className="text-[10px] font-mono text-muted-foreground mt-1">est. minimum</p>}
     </div>
   );
 }

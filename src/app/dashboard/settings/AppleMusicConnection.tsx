@@ -12,9 +12,17 @@ interface AppleMusicConnectionProps {
   };
 }
 
+/** Minimal typing for the parts of MusicKit JS v3 we use. */
+interface MusicKitInstance {
+  authorize(): Promise<string>;
+}
+interface MusicKitGlobal {
+  configure(config: { developerToken: string; app: { name: string; build: string } }): Promise<MusicKitInstance>;
+}
+
 declare global {
   interface Window {
-    MusicKit: any;
+    MusicKit?: MusicKitGlobal;
   }
 }
 
@@ -64,9 +72,9 @@ export default function AppleMusicConnection({ initialStatus }: AppleMusicConnec
       } else {
         setStatus({ type: "error", message: result.error || "Connection failed." });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setStatus({ type: "error", message: err.message || "Failed to connect to Apple Music." });
+      setStatus({ type: "error", message: err instanceof Error ? err.message : "Failed to connect to Apple Music." });
     } finally {
       setIsLoading(false);
     }
@@ -107,8 +115,9 @@ export default function AppleMusicConnection({ initialStatus }: AppleMusicConnec
       {!isConnected ? (
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Link your Apple Music library to sync your listening activity. 
-            We use MusicKit to securely access your recently played tracks.
+            Link your Apple Music account via MusicKit. <strong className="text-foreground">Limitation:</strong> Apple&apos;s
+            API lists recently played songs but gives no play times or counts, so each sync records
+            those songs once with an estimated time. Treat Apple Music data as approximate.
           </p>
           <button 
             onClick={handleConnect}
