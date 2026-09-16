@@ -1,4 +1,4 @@
-import { getOrCreateDefaultUser } from "@/lib/db-utils";
+import { requireUser } from "@/lib/auth/current-user";
 import { generateWrappedData, MIN_PLAYS_FOR_RECAP } from "@/lib/wrapped-service";
 import WrappedStory from "./WrappedStory";
 import Link from "next/link";
@@ -8,7 +8,7 @@ import { recaps } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export default async function WrappedPage() {
-  const user = await getOrCreateDefaultUser();
+  const user = await requireUser();
   const currentYear = new Date().getFullYear();
 
   const data = await generateWrappedData(user.id, currentYear);

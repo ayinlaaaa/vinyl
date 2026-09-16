@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { musicProviders } from "@/db/schema";
-import { getOrCreateDefaultUser } from "@/lib/db-utils";
+import { getCurrentUser } from "@/lib/auth/current-user";
+import { encrypt } from "@/lib/crypto";
 import { eq, and } from "drizzle-orm";
 import { SPOTIFY_STATE_COOKIE } from "@/lib/providers/spotify-oauth";
 import type { SpotifyTokenResponse } from "@/lib/providers/spotify";
@@ -52,7 +53,10 @@ export async function GET(req: NextRequest) {
     }
 
     const tokens = (await response.json()) as SpotifyTokenResponse;
-    const user = await getOrCreateDefaultUser();
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.redirect(new URL("/login?next=/dashboard/settings", req.url));
+    }
 
     // Get Spotify user profile to get their ID
     const profileRes = await fetch("https://api.spotify.com/v1/me", {
@@ -74,8 +78,8 @@ export async function GET(req: NextRequest) {
       userId: user.id,
       provider: "spotify" as const,
       providerUserId: profile.id,
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token ?? null,
+      accessToken: encrypt(tokens.access_token),
+      refreshToken: tokens.refresh_token ? encrypt(tokens.refresh_token) : null,
       expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
       isConnected: true,
       updatedAt: new Date(),

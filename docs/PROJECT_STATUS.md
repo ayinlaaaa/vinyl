@@ -4,6 +4,17 @@ _Initial audit: 2026-09-16 against commit `6c8e0e5`. Updated after **Phase 9 Par
 
 ## 0. Changelog
 
+### Phase 9 Part 2 — Authentication & account boundaries (2026-09-16) ✅
+
+- Email/password sign-up and sign-in (`/signup`, `/login`), scrypt hashing, generic error messages (no account enumeration), `?next=` open-redirect protection.
+- Server-side sessions table (`sessions`), opaque httpOnly cookie, SHA-256 token hash at rest, 30-day expiry, sign-out invalidates server-side.
+- `requireUser()` replaces `getOrCreateDefaultUser()` in **every** dashboard page and server action (30 call sites); dashboard layout redirects to `/login`; auth pages redirect signed-in users to `/dashboard`; public recaps stay public.
+- Spotify OAuth callback now requires a signed-in user and encrypts tokens; Apple Music user token encrypted; AES-256-GCM via `TOKEN_ENCRYPTION_KEY` with transparent fallback for pre-existing plaintext values.
+- Guest mode gated behind `ALLOW_GUEST_LOGIN=true` (development only).
+- First real Drizzle migration generated (`drizzle/0000_init.sql`); `db:generate` / `db:migrate` scripts.
+- 9 new unit tests (password, crypto); an end-to-end flow (sign-up → data isolation → guest → sign-out → replayed cookie rejected) was run against the real database.
+- Not included: email verification, password reset, rate limiting / lockout, "remember me" choice, account deletion UI.
+
 ### Phase 9 Part 1 — Production Hardening: data integrity & correctness (2026-09-16) ✅
 
 Fixed (all verified against a real PostgreSQL database):
@@ -49,8 +60,8 @@ repository.** The real stack is:
 | Animation | framer-motion 13 | Used only in the Wrapped story |
 | Icons | lucide-react | |
 | Database | **PostgreSQL** via `pg` + **Drizzle ORM 0.45** | Not Supabase. Schema pushed with `drizzle-kit push` |
-| Auth | **None** | A single hard-coded `guest@vinyl.audio` user is created on first request. All queries are now `userId`-scoped in preparation. |
-| Tests | **Vitest** | 20 unit tests covering import normalisation, dedup keys and analytics |
+| Auth | **Email + password, server-side sessions** (P9.2) | scrypt, httpOnly cookie, `requireUser()` on every page/action. Optional dev-only guest mode. |
+| Tests | **Vitest** | 29 unit tests: import normalisation, dedup keys, analytics, password hashing, token encryption |
 | CI / Docker / deploy config | **None** | |
 
 The original upload had no `.gitignore`, README, `.env.example` or lockfile, and the Git history
@@ -135,9 +146,9 @@ Legend: ✅ verified working · ⚠️ partially working / has bugs · ❌ broke
 
 | Severity | Issue |
 |---|---|
-| **High** | No authentication at all. Anyone who can reach the app can connect providers, import data, delete data, and publish recaps under the shared guest account. This is acceptable for a local prototype but blocks any deployment. |
+| ~~High~~ fixed P9.2 | No authentication. Now email/password + sessions; every page and action guarded. |
 | ~~High~~ fixed P9.1 | `clearAllData` deleted every row for all users. Now user-scoped. |
-| **Medium** | Provider access/refresh tokens and the Apple Music user token are stored **in plaintext** in `music_providers`. |
+| ~~Medium~~ fixed P9.2 | Provider tokens were stored in plaintext. Now AES-256-GCM encrypted. |
 | ~~Medium~~ fixed P9.1 | Spotify OAuth flow had no `state` parameter. |
 | ~~Medium~~ fixed P9.1 | `drizzle.config.json` hard-coded DB credentials. Now `drizzle.config.ts` reads `DATABASE_URL`. |
 | ~~Low~~ fixed P9.1 | Last.fm stored the whole raw API object per row. Now stores nothing extra. |
@@ -160,34 +171,32 @@ Legend: ✅ verified working · ⚠️ partially working / has bugs · ❌ broke
 ## 6. Database / auth / deployment readiness
 
 - **Database:** Schema is sound but incomplete for production: no indexes on `(user_id, played_at)`, no unique constraint for dedup, no migrations folder (uses `push`).
-- **Authentication:** Not implemented. Single guest user. All data-service queries need `userId` scoping before auth can be added safely.
-- **Deployment:** Not ready. No `.env.example`, README, Dockerfile, CI, or health-check docs; build depends on Google Fonts at build time; several high-severity bugs above.
+- **Authentication:** Implemented (P9.2). Missing for a public launch: password reset, email verification, rate limiting.
+- **Deployment:** Close. Remaining: rate limiting on auth endpoints, CI workflow, a production migration run (`npm run db:migrate`), and setting `TOKEN_ENCRYPTION_KEY`. No Dockerfile yet.
 
 ---
 
-## 7. Known issues (remaining after Phase 9 Part 1)
+## 7. Known issues (remaining after Phase 9 Part 2)
 
-1. **No authentication** — single shared guest account. Biggest blocker to deployment.
-2. Provider tokens stored in plaintext in `music_providers`.
+1. **No rate limiting / lockout** on sign-in — brute force is slowed only by scrypt cost. Add before public launch.
+2. **No password reset or email verification** — requires an email provider (not yet chosen).
 3. Weekday / hour buckets and the "listening vibe" use the **server's** timezone, not the user's.
 4. Last.fm sync fetches only the latest 200 scrobbles; no backfill pagination.
-5. Apple Music can never provide real play history (API limitation) — labelled, but consider hiding it behind an "experimental" flag.
+5. Apple Music can never provide real play history (API limitation) — labelled, but consider hiding behind an "experimental" flag.
 6. Collection page "Sort" button does nothing; dashboard is not usable on small screens (fixed 256 px sidebar).
-7. `/api/og/recap` social image endpoint does not exist (reference removed from metadata for now).
+7. `/api/og/recap` social image endpoint does not exist.
 8. Design: amber accent from "The Archive" brief still unused; success/error states use generic emerald/rose.
-9. No DB migrations folder — schema is applied with `drizzle-kit push`. Fine for now; generate migrations before the first real deployment.
+9. No account-deletion UI (the "Clear All Data" button removes data but keeps the account).
+10. No CI workflow runs `npm run check` on push.
 
-## 8. Recommended next milestone: **Phase 9 Part 2 — Authentication & account boundaries**
+## 8. Recommended next milestone: **Phase 10 — Analytics accuracy**
 
-Rationale: with the data layer now idempotent, validated and user-scoped, the remaining
-blocker to any real deployment is that everyone shares one account. Proposed scope:
+With data integrity and accounts in place, the numbers themselves are the next trust issue:
 
-1. Add email-based sign-in (magic link or password) using a well-maintained library compatible with Next 16 — to be agreed before adding the dependency.
-2. Replace `getOrCreateDefaultUser()` with a `getCurrentUser()` that reads the session; keep a dev-only guest fallback behind an env flag.
-3. Encrypt provider tokens at rest (AES-GCM with a server-side key from env).
-4. Protect `/dashboard/*` and all server actions; keep `/recap/[id]` public.
-5. Generate the first Drizzle migration.
+1. Store the user's IANA timezone on the account (captured from the browser on sign-up, editable in settings); compute weekday/hour buckets and the recap "vibe" in that zone.
+2. Last.fm backfill: paginate `user.getrecenttracks` with `from`/`page` until the last synced timestamp so long-time scrobblers get their full history.
+3. Artist/track normalisation: trim, unify casing and common suffixes (`(Remastered 2009)`, `- Radio Edit`) into a display-name + canonical-key pair so top lists don't split.
+4. Surface "estimated vs verified" in one consistent component used by dashboard, recap and history.
+5. Add rate limiting to sign-in/sign-up (small, but cheap to do alongside).
 
-After that: **Phase 10 — Analytics accuracy** (user timezone, Last.fm backfill, artist-name
-normalisation), then **Phase 11 — Wrapped polish** (amber accent, responsive layout,
-reduced-motion, OG images).
+After that: **Phase 11 — Wrapped polish** (amber accent, responsive layout, reduced-motion, OG images), then **Phase 12 — Public profiles & privacy controls**.

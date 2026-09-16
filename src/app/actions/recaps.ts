@@ -2,13 +2,13 @@
 
 import { db } from "@/db";
 import { recaps } from "@/db/schema";
-import { getOrCreateDefaultUser } from "@/lib/db-utils";
+import { requireUser } from "@/lib/auth/current-user";
 import { generateWrappedData } from "@/lib/wrapped-service";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 export async function saveCurrentYearRecap() {
-  const user = await getOrCreateDefaultUser();
+  const user = await requireUser();
   const year = new Date().getFullYear();
 
   try {
@@ -50,7 +50,7 @@ export async function saveCurrentYearRecap() {
 }
 
 export async function toggleRecapVisibility(id: string, isPublic: boolean) {
-  const user = await getOrCreateDefaultUser();
+  const user = await requireUser();
   
   await db.update(recaps)
     .set({ isPublic, updatedAt: new Date() })

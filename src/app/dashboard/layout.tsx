@@ -1,16 +1,23 @@
 import { Disc, LayoutDashboard, History, Library, Settings } from "lucide-react";
 import Link from "next/link";
 import SidebarNav from "./SidebarNav";
+import { requireUser } from "@/lib/auth/current-user";
+import { signOut } from "@/app/actions/auth";
+import { LogOut } from "lucide-react";
 
 // Every dashboard page reads live data from the database, so it must be rendered
 // per request – never pre-rendered at build time.
 export const dynamic = "force-dynamic";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Redirects to /login when there is no valid session. Every page under /dashboard
+  // and every server action also calls requireUser() itself – defence in depth.
+  const user = await requireUser();
+
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       {/* Sidebar */}
@@ -29,11 +36,20 @@ export default function DashboardLayout({
           ]}
         />
 
-        <div className="p-4 border-t border-border">
-          {/* No authentication exists yet – this is a single shared guest account. */}
-          <p className="px-4 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-            Guest listener
-          </p>
+        <div className="p-4 border-t border-border space-y-3">
+          <div className="px-4 min-w-0">
+            <p className="text-sm font-medium truncate">{user.name ?? "Listener"}</p>
+            <p className="text-[10px] font-mono text-muted-foreground truncate">{user.email}</p>
+          </div>
+          <form action={signOut}>
+            <button
+              type="submit"
+              className="flex items-center gap-3 px-4 py-2 w-full text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign out
+            </button>
+          </form>
         </div>
       </aside>
 

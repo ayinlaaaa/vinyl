@@ -5,9 +5,25 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   name: text("name"),
   imageUrl: text("image_url"),
+  /** scrypt hash in the form "salt:hash" (hex). Null for accounts that have no password (e.g. dev guest). */
+  passwordHash: text("password_hash"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+/**
+ * Server-side sessions. The browser only holds a random opaque token in an httpOnly cookie;
+ * we store the SHA-256 of that token so a database leak does not expose live sessions.
+ */
+export const sessions = pgTable("sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("sessions_user_idx").on(table.userId),
+]);
 
 export const musicProviders = pgTable("music_providers", {
   id: uuid("id").primaryKey().defaultRandom(),

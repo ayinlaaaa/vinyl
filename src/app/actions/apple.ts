@@ -3,14 +3,15 @@
 import { db } from "@/db";
 import { musicProviders } from "@/db/schema";
 import { insertListeningRows } from "@/lib/history-repo";
-import { getOrCreateDefaultUser } from "@/lib/db-utils";
+import { decrypt, encrypt } from "@/lib/crypto";
+import { requireUser } from "@/lib/auth/current-user";
 import { getRecentlyPlayed, normalizeAppleTrack } from "@/lib/providers/apple";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 export async function connectAppleMusic(musicUserToken: string) {
   try {
-    const user = await getOrCreateDefaultUser();
+    const user = await requireUser();
     
     const existing = await db.query.musicProviders.findFirst({
       where: and(
@@ -23,7 +24,7 @@ export async function connectAppleMusic(musicUserToken: string) {
       userId: user.id,
       provider: "apple" as const,
       providerUserId: "me", // Apple Music doesn't expose a simple user ID without extra calls
-      accessToken: musicUserToken, // We'll store the Music-User-Token here
+      accessToken: encrypt(musicUserToken), // Music-User-Token, encrypted at rest
       isConnected: true,
       updatedAt: new Date(),
     };
@@ -44,7 +45,7 @@ export async function connectAppleMusic(musicUserToken: string) {
 
 export async function syncAppleMusic() {
   try {
-    const user = await getOrCreateDefaultUser();
+    const user = await requireUser();
     const developerToken = process.env.APPLE_DEVELOPER_TOKEN;
 
     if (!developerToken) {
@@ -63,7 +64,7 @@ export async function syncAppleMusic() {
       return { success: false, error: "Apple Music not connected" };
     }
 
-    const tracks = await getRecentlyPlayed(developerToken, provider.accessToken);
+    const tracks = await getRecentlyPlayed(developerToken, decrypt(provider.accessToken));
 
     // See normalizeAppleTrack: Apple gives no timestamps, so each track is recorded at
     // most once per day with an estimated playedAt. This is NOT a real play log.
@@ -84,7 +85,7 @@ export async function syncAppleMusic() {
 }
 
 export async function disconnectAppleMusic() {
-  const user = await getOrCreateDefaultUser();
+  const user = await requireUser();
   await db.update(musicProviders)
     .set({ isConnected: false })
     .where(and(

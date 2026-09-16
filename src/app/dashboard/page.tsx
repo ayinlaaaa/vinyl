@@ -5,11 +5,11 @@ import DashboardCharts from "@/app/dashboard/components/DashboardCharts";
 import Link from "next/link";
 import { db } from "@/db";
 import { recaps } from "@/db/schema";
-import { getOrCreateDefaultUser } from "@/lib/db-utils";
+import { requireUser } from "@/lib/auth/current-user";
 import { eq, desc } from "drizzle-orm";
 
 export default async function DashboardPage() {
-  const user = await getOrCreateDefaultUser();
+  const user = await requireUser();
   const { stats, recent, isMock } = await getDashboardData();
   
   const savedRecaps = await db.query.recaps.findMany({

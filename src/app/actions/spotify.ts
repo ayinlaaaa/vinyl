@@ -3,13 +3,14 @@
 import { db } from "@/db";
 import { musicProviders } from "@/db/schema";
 import { insertListeningRows } from "@/lib/history-repo";
-import { getOrCreateDefaultUser } from "@/lib/db-utils";
+import { requireUser } from "@/lib/auth/current-user";
 import { getRecentlyPlayed, normalizeSpotifyTrack, refreshSpotifyToken } from "@/lib/providers/spotify";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { randomBytes } from "crypto";
 import { SPOTIFY_STATE_COOKIE } from "@/lib/providers/spotify-oauth";
+import { decrypt, encrypt } from "@/lib/crypto";
 
 export async function getSpotifyAuthUrl() {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
@@ -50,7 +51,7 @@ export async function getSpotifyAuthUrl() {
 
 export async function syncSpotify() {
   try {
-    const user = await getOrCreateDefaultUser();
+    const user = await requireUser();
     const provider = await db.query.musicProviders.findFirst({
       where: and(
         eq(musicProviders.userId, user.id),
@@ -61,20 +62,22 @@ export async function syncSpotify() {
 
     if (!provider) return { success: false, error: "Spotify not connected" };
 
-    let accessToken = provider.accessToken;
+    // Tokens are stored encrypted at rest (see src/lib/crypto.ts).
+    let accessToken = provider.accessToken ? decrypt(provider.accessToken) : null;
+    const refreshToken = provider.refreshToken ? decrypt(provider.refreshToken) : null;
 
     // Check if token needs refresh
     if (!accessToken || (provider.expiresAt && provider.expiresAt < new Date())) {
-      if (!provider.refreshToken) return { success: false, error: "No refresh token available" };
-      
-      const tokens = await refreshSpotifyToken(provider.refreshToken);
+      if (!refreshToken) return { success: false, error: "No refresh token available" };
+
+      const tokens = await refreshSpotifyToken(refreshToken);
       accessToken = tokens.access_token;
 
       await db.update(musicProviders)
         .set({
-          accessToken: tokens.access_token,
+          accessToken: encrypt(tokens.access_token),
           // Spotify may rotate the refresh token; keep the old one if it doesn't.
-          refreshToken: tokens.refresh_token ?? provider.refreshToken,
+          refreshToken: encrypt(tokens.refresh_token ?? refreshToken),
           expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
           updatedAt: new Date(),
         })
@@ -101,7 +104,7 @@ export async function syncSpotify() {
 }
 
 export async function disconnectSpotify() {
-  const user = await getOrCreateDefaultUser();
+  const user = await requireUser();
   await db.update(musicProviders)
     .set({ isConnected: false })
     .where(and(

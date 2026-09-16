@@ -13,8 +13,9 @@ export default function LandingPage() {
         <div className="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide uppercase text-muted-foreground">
           <Link href="#features" className="hover:text-foreground transition-colors">Features</Link>
           <Link href="#about" className="hover:text-foreground transition-colors">About</Link>
-          <Link href="/dashboard" className="px-5 py-2 bg-primary text-primary-foreground rounded-full hover:opacity-90 transition-opacity">
-            Open Dashboard
+          <Link href="/login" className="hover:text-foreground transition-colors">Sign in</Link>
+          <Link href="/signup" className="px-5 py-2 bg-primary text-primary-foreground rounded-full hover:opacity-90 transition-opacity">
+            Get started
           </Link>
         </div>
       </nav>
@@ -32,16 +33,16 @@ export default function LandingPage() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link 
-                  href="/dashboard" 
+                  href="/signup" 
                   className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-primary text-primary-foreground rounded-none text-lg font-medium hover:bg-primary/90 transition-colors"
                 >
                   Start your collection <ArrowRight className="w-5 h-5" />
                 </Link>
                 <Link 
-                  href="/dashboard/wrapped" 
+                  href="/login" 
                   className="inline-flex items-center justify-center gap-2 px-8 py-4 border border-border text-lg font-medium hover:bg-secondary transition-colors"
                 >
-                  View your recap
+                  Sign in
                 </Link>
               </div>
             </div>

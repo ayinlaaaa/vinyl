@@ -4,7 +4,7 @@ import { desc, eq } from "drizzle-orm";
 import { generateMockHistory } from "./mock-data";
 import { computeStats } from "./analytics";
 import type { ListeningEvent, ListeningSource } from "./listening";
-import { getOrCreateDefaultUser } from "./db-utils";
+import { requireUser } from "./auth/current-user";
 
 type HistoryRow = typeof listeningHistory.$inferSelect;
 
@@ -31,7 +31,7 @@ async function loadUserEvents(userId: string, limit?: number): Promise<Listening
 }
 
 export async function getDashboardData() {
-  const user = await getOrCreateDefaultUser();
+  const user = await requireUser();
   const events = await loadUserEvents(user.id, 500);
 
   if (events.length === 0) {
@@ -43,7 +43,7 @@ export async function getDashboardData() {
 }
 
 export async function getHistoryData() {
-  const user = await getOrCreateDefaultUser();
+  const user = await requireUser();
   const events = await loadUserEvents(user.id, 100);
 
   if (events.length === 0) {
@@ -53,7 +53,7 @@ export async function getHistoryData() {
 }
 
 export async function getCollectionData() {
-  const user = await getOrCreateDefaultUser();
+  const user = await requireUser();
   const events = await loadUserEvents(user.id);
   const source = events.length === 0 ? generateMockHistory(90) : events;
 
@@ -69,7 +69,7 @@ export async function getCollectionData() {
 }
 
 export async function getRecapsData() {
-  const user = await getOrCreateDefaultUser();
+  const user = await requireUser();
   return db.query.recaps.findMany({
     where: eq(recaps.userId, user.id),
     orderBy: [desc(recaps.createdAt)],

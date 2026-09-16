@@ -3,14 +3,14 @@
 import { db } from "@/db";
 import { musicProviders } from "@/db/schema";
 import { insertListeningRows } from "@/lib/history-repo";
-import { getOrCreateDefaultUser } from "@/lib/db-utils";
+import { requireUser } from "@/lib/auth/current-user";
 import { fetchRecentTracks, normalizeLastfmTrack } from "@/lib/providers/lastfm";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 export async function connectLastfm(username: string) {
   try {
-    const user = await getOrCreateDefaultUser();
+    const user = await requireUser();
     const apiKey = process.env.LASTFM_API_KEY;
 
     if (!apiKey) {
@@ -59,7 +59,7 @@ export async function connectLastfm(username: string) {
 
 export async function syncLastfm() {
   try {
-    const user = await getOrCreateDefaultUser();
+    const user = await requireUser();
     const apiKey = process.env.LASTFM_API_KEY;
 
     if (!apiKey) return { success: false, error: "Last.fm API key missing" };
@@ -97,7 +97,7 @@ export async function syncLastfm() {
 }
 
 export async function disconnectLastfm() {
-  const user = await getOrCreateDefaultUser();
+  const user = await requireUser();
   await db.update(musicProviders)
     .set({ isConnected: false })
     .where(and(

@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import { musicProviders, recaps } from "@/db/schema";
-import { getOrCreateDefaultUser } from "@/lib/db-utils";
+import { requireUser } from "@/lib/auth/current-user";
 import { normalizeImport } from "@/lib/import-normalizer";
 import { deleteUserHistory, insertListeningRows } from "@/lib/history-repo";
 import { eq } from "drizzle-orm";
@@ -35,7 +35,7 @@ export async function importListeningHistory(data: unknown): Promise<ImportResul
       return { ...empty, error: `File has ${data.length} records; the limit is ${MAX_RECORDS}. Please split it.` };
     }
 
-    const user = await getOrCreateDefaultUser();
+    const user = await requireUser();
     const { rows, rejected, duplicatesInFile } = normalizeImport(data, user.id);
 
     if (rows.length === 0) {
@@ -71,7 +71,7 @@ export async function importListeningHistory(data: unknown): Promise<ImportResul
  * provider connections. Scoped by userId – never touches other users' rows.
  */
 export async function clearAllData() {
-  const user = await getOrCreateDefaultUser();
+  const user = await requireUser();
   await deleteUserHistory(user.id);
   await db.delete(recaps).where(eq(recaps.userId, user.id));
   await db.delete(musicProviders).where(eq(musicProviders.userId, user.id));

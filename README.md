@@ -20,7 +20,7 @@ archive-inspired interface.
 ```bash
 cp .env.example .env        # then fill in DATABASE_URL (provider keys are optional)
 npm install
-npm run db:push             # creates / updates the tables in your database
+npm run db:migrate          # creates the tables in your database
 npm run dev                 # http://localhost:3000
 ```
 
@@ -36,7 +36,9 @@ You need a running PostgreSQL 14+ instance. Any connection string works in `DATA
 | `npm run lint` | ESLint |
 | `npm test` | Vitest unit tests (`src/**/*.test.ts`) |
 | `npm run check` | typecheck + lint + test |
-| `npm run db:push` | Push `src/db/schema.ts` to the database |
+| `npm run db:generate` | Create a SQL migration from `src/db/schema.ts` changes |
+| `npm run db:migrate` | Apply pending migrations (use this in production) |
+| `npm run db:push` | Push the schema directly without a migration (local prototyping only) |
 
 ## Data sources — what each one can and cannot provide
 
@@ -53,22 +55,35 @@ When the database is empty, pages show clearly labelled **demo data** that is ne
 
 ## Authentication
 
-There is **no authentication yet**. Every visitor shares one guest account
-(`guest@vinyl.audio`). All queries are already scoped by `userId` so that adding real
-sign-in later does not require touching the data layer. Do not deploy publicly until
-authentication is added.
+Email + password accounts with server-side sessions (no third-party auth service):
+
+- Passwords are hashed with **scrypt** (`src/lib/auth/password.ts`); minimum 10 characters.
+- Sessions live in the `sessions` table; the browser holds only a random token in an
+  `httpOnly`, `SameSite=Lax` cookie, and the DB stores its SHA-256. Sign-out deletes the row.
+- `requireUser()` (`src/lib/auth/current-user.ts`) guards every dashboard page **and** every
+  server action. `/`, `/login`, `/signup` and public `/recap/[id]` pages are open.
+- Provider tokens (Spotify, Apple) are encrypted at rest with AES-256-GCM using
+  `TOKEN_ENCRYPTION_KEY`.
+- **Guest mode** (`ALLOW_GUEST_LOGIN=true`) adds a passwordless shared account to the login
+  page for local development. Never enable it in production.
+
+Not included yet: email verification, password reset, rate limiting. See
+`docs/PROJECT_STATUS.md`.
 
 ## Project layout
 
 ```
 src/
   app/                 Next.js routes (App Router)
-    actions/           Server Actions: import, provider connect/sync, recaps
+    (auth)/            /login and /signup
+    actions/           Server Actions: auth, import, provider connect/sync, recaps
     api/               Route handlers: health check, Spotify OAuth callback
     dashboard/         Authenticated-area pages (overview, history, collection, settings, wrapped)
     recap/[id]/        Public, shareable recap page
   db/                  Drizzle schema + connection pool
   lib/
+    auth/              password hashing, sessions, requireUser()
+    crypto.ts          AES-GCM encryption for provider tokens
     listening.ts       Shared ListeningEvent type + normalisation helpers
     import-normalizer  Pure JSON-import parser (unit tested)
     analytics.ts       Pure statistics (unit tested)
@@ -76,5 +91,6 @@ src/
     providers/         Spotify / Last.fm / Apple API clients + normalisers
     wrapped-service.ts Yearly recap generation
   lib/__tests__/       Vitest unit tests
+drizzle/               SQL migrations
 docs/PROJECT_STATUS.md Audit, verified state, roadmap
 ```
