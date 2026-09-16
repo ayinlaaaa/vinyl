@@ -1,0 +1,58 @@
+import { pgTable, text, timestamp, uuid, integer, jsonb, boolean } from "drizzle-orm/pg-core";
+
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  imageUrl: text("image_url"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const musicProviders = pgTable("music_providers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  provider: text("provider", { enum: ["spotify", "lastfm", "apple"] }).notNull(),
+  providerUserId: text("provider_user_id").notNull(),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  expiresAt: timestamp("expires_at"),
+  isConnected: boolean("is_connected").default(true).notNull(),
+  lastSyncedAt: timestamp("last_synced_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const listeningHistory = pgTable("listening_history", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  provider: text("provider").notNull(), // 'spotify', 'lastfm', 'apple', 'import'
+  
+  trackName: text("track_name").notNull(),
+  artistName: text("artist_name").notNull(),
+  albumName: text("album_name"),
+  albumArtUrl: text("album_art_url"),
+  
+  playedAt: timestamp("played_at").notNull(),
+  durationMs: integer("duration_ms"),
+  
+  // To avoid duplicates during syncs
+  externalId: text("external_id"), 
+  
+  // Extra provider-specific data
+  metadata: jsonb("metadata"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const recaps = pgTable("recaps", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  title: text("title").notNull(),
+  type: text("type").notNull(), // 'yearly', 'monthly', 'custom'
+  data: jsonb("data").notNull(), // The calculated stats
+  config: jsonb("config"), // Visual configuration
+  isPublic: boolean("is_public").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
