@@ -1,15 +1,16 @@
 "use server";
 
 import { db } from "@/db";
-import { musicProviders, listeningHistory } from "@/db/schema";
-import { getOrCreateDefaultUser } from "@/lib/db-utils";
+import { musicProviders } from "@/db/schema";
+import { insertListeningRows } from "@/lib/history-repo";
+import { requireUser } from "@/lib/auth/current-user";
 import { fetchRecentTracks, normalizeLastfmTrack } from "@/lib/providers/lastfm";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 export async function connectLastfm(username: string) {
   try {
-    const user = await getOrCreateDefaultUser();
+    const user = await requireUser();
     const apiKey = process.env.LASTFM_API_KEY;
 
     if (!apiKey) {
@@ -58,7 +59,7 @@ export async function connectLastfm(username: string) {
 
 export async function syncLastfm() {
   try {
-    const user = await getOrCreateDefaultUser();
+    const user = await requireUser();
     const apiKey = process.env.LASTFM_API_KEY;
 
     if (!apiKey) return { success: false, error: "Last.fm API key missing" };
@@ -73,31 +74,14 @@ export async function syncLastfm() {
 
     if (!provider) return { success: false, error: "Last.fm not connected" };
 
-    const tracks = await fetchRecentTracks(provider.providerUserId, apiKey, 100);
-    const normalized = tracks
-      .filter(t => t.date) // Skip "now playing" which has no date
-      .map(t => ({
-        ...normalizeLastfmTrack(t),
-        userId: user.id,
-        provider: "lastfm",
-      }));
+    // Last.fm's recent-tracks endpoint is paginated; for now we fetch the latest 200.
+    const tracks = await fetchRecentTracks(provider.providerUserId, apiKey, 200);
+    const rows = tracks
+      // Skip the "now playing" entry – it has no timestamp yet and will appear on the next sync.
+      .filter((t): t is typeof t & { date: { uts: string } } => Boolean(t.date?.uts))
+      .map((t) => normalizeLastfmTrack(t, user.id));
 
-    let count = 0;
-    for (const track of normalized) {
-      try {
-        // Check if already exists to avoid duplicates
-        const existing = await db.query.listeningHistory.findFirst({
-          where: eq(listeningHistory.externalId, track.externalId)
-        });
-        
-        if (!existing) {
-          await db.insert(listeningHistory).values(track);
-          count++;
-        }
-      } catch (e) {
-        // Continue on error
-      }
-    }
+    const count = await insertListeningRows(rows);
 
     await db.update(musicProviders)
       .set({ lastSyncedAt: new Date() })
@@ -107,12 +91,13 @@ export async function syncLastfm() {
     return { success: true, count };
   } catch (error) {
     console.error("Last.fm sync error:", error);
-    return { success: false, error: "Sync failed" };
+    const message = error instanceof Error ? error.message : "Sync failed";
+    return { success: false, error: `Last.fm sync failed: ${message}` };
   }
 }
 
 export async function disconnectLastfm() {
-  const user = await getOrCreateDefaultUser();
+  const user = await requireUser();
   await db.update(musicProviders)
     .set({ isConnected: false })
     .where(and(

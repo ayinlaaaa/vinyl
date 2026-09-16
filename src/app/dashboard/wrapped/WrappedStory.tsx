@@ -53,7 +53,12 @@ export default function WrappedStory({ data, initialId, initialIsPublic }: { dat
                transition={{ duration: 2 }} 
              />
           </div>
-          <p className="text-lg text-muted-foreground">That's {data.totalPlays.toLocaleString()} total plays across {data.uniqueArtists} different artists.</p>
+          <p className="text-lg text-muted-foreground">That&apos;s {data.totalPlays.toLocaleString()} total plays across {data.uniqueArtists} different artists.</p>
+          {data.playsWithoutDuration > 0 && (
+            <p className="text-xs font-mono text-muted-foreground/70">
+              Minimum figure: {data.playsWithoutDuration.toLocaleString()} plays had no duration data (Last.fm does not report it).
+            </p>
+          )}
         </div>
       )
     },
@@ -123,7 +128,11 @@ export default function WrappedStory({ data, initialId, initialIsPublic }: { dat
              {data.listeningVibe}
            </h2>
            <p className="text-xl text-muted-foreground max-w-md mx-auto leading-relaxed">
-             Based on your peak listening hours and genre diversity, you belong to the elite circle of {data.listeningVibe}s.
+             Based on the hour of day you listen most.
+           </p>
+           <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground/60">
+             Sources: {data.sources?.join(", ") ?? "unknown"}
+             {data.containsEstimatedTimestamps && " · Apple Music times are estimates"}
            </p>
         </div>
       )

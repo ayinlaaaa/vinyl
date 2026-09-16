@@ -6,11 +6,11 @@ import ImportSection from "./ImportSection";
 import DangerZone from "./DangerZone";
 import { db } from "@/db";
 import { musicProviders } from "@/db/schema";
-import { getOrCreateDefaultUser } from "@/lib/db-utils";
+import { requireUser } from "@/lib/auth/current-user";
 import { eq, and } from "drizzle-orm";
 
 export default async function SettingsPage() {
-  const user = await getOrCreateDefaultUser();
+  const user = await requireUser();
   
   const providers = await db.query.musicProviders.findMany({
     where: eq(musicProviders.userId, user.id),

@@ -1,13 +1,29 @@
-import { pgTable, text, timestamp, uuid, integer, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, integer, jsonb, boolean, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
   name: text("name"),
   imageUrl: text("image_url"),
+  /** scrypt hash in the form "salt:hash" (hex). Null for accounts that have no password (e.g. dev guest). */
+  passwordHash: text("password_hash"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+/**
+ * Server-side sessions. The browser only holds a random opaque token in an httpOnly cookie;
+ * we store the SHA-256 of that token so a database leak does not expose live sessions.
+ */
+export const sessions = pgTable("sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("sessions_user_idx").on(table.userId),
+]);
 
 export const musicProviders = pgTable("music_providers", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -43,7 +59,13 @@ export const listeningHistory = pgTable("listening_history", {
   metadata: jsonb("metadata"),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  // One play per (user, externalId). This is what makes imports and syncs idempotent:
+  // re-running them hits ON CONFLICT DO NOTHING instead of doubling every statistic.
+  uniqueIndex("listening_history_user_external_idx").on(table.userId, table.externalId),
+  // Every dashboard query is "this user's plays, newest first".
+  index("listening_history_user_played_idx").on(table.userId, table.playedAt),
+]);
 
 export const recaps = pgTable("recaps", {
   id: uuid("id").primaryKey().defaultRandom(),

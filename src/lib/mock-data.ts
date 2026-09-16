@@ -1,13 +1,11 @@
-import { subDays, startOfDay, format, eachDayOfInterval } from "date-fns";
+import { subDays } from "date-fns";
+import type { ListeningEvent } from "./listening";
 
-export interface ListeningEvent {
-  id: string;
-  trackName: string;
-  artistName: string;
-  albumName: string;
-  playedAt: Date;
-  durationMs: number;
-}
+/**
+ * Demo data shown ONLY when the user has no listening history at all.
+ * Every page that renders it receives `isMock: true` and must label it clearly.
+ * This is never written to the database.
+ */
 
 const ARTISTS = [
   { name: "Radiohead", tracks: ["Creep", "Paranoid Android", "Karma Police", "No Surprises"] },
@@ -25,52 +23,17 @@ export function generateMockHistory(days = 30): ListeningEvent[] {
   for (let i = 0; i < days * 20; i++) {
     const artist = ARTISTS[Math.floor(Math.random() * ARTISTS.length)];
     const track = artist.tracks[Math.floor(Math.random() * artist.tracks.length)];
-    const playedAt = subDays(now, Math.random() * days);
-    
+
     events.push({
-      id: Math.random().toString(36).substring(7),
+      id: `mock-${i}`,
       trackName: track,
       artistName: artist.name,
       albumName: "Essential " + artist.name,
-      playedAt,
-      durationMs: 180000 + Math.random() * 120000,
+      playedAt: subDays(now, Math.random() * days),
+      durationMs: Math.round(180000 + Math.random() * 120000),
+      provider: "mock",
     });
   }
 
   return events.sort((a, b) => b.playedAt.getTime() - a.playedAt.getTime());
-}
-
-export function getStats(events: ListeningEvent[]) {
-  const topArtists = new Map<string, number>();
-  const topTracks = new Map<string, number>();
-  const dailyActivity = new Map<string, number>();
-
-  events.forEach(event => {
-    topArtists.set(event.artistName, (topArtists.get(event.artistName) || 0) + 1);
-    topTracks.set(`${event.trackName} - ${event.artistName}`, (topTracks.get(`${event.trackName} - ${event.artistName}`) || 0) + 1);
-    
-    const day = format(event.playedAt, "EEE");
-    dailyActivity.set(day, (dailyActivity.get(day) || 0) + 1);
-  });
-
-  return {
-    totalPlays: events.length,
-    totalTime: Math.round(events.reduce((acc, curr) => acc + curr.durationMs, 0) / (1000 * 60 * 60)),
-    topArtists: Array.from(topArtists.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5),
-    topTracks: Array.from(topTracks.entries())
-      .map(([full, count]) => ({ 
-        name: full.split(" - ")[0], 
-        artist: full.split(" - ")[1], 
-        count 
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5),
-    chartData: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(day => ({
-      name: day,
-      count: dailyActivity.get(day) || 0
-    }))
-  };
 }

@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Search, Filter, Disc, MoreVertical, Play } from "lucide-react";
-import { ListeningEvent } from "@/lib/mock-data";
+import { Search, Disc, Play } from "lucide-react";
+import type { ListeningEvent } from "@/lib/listening";
 
 export default function HistoryList({ initialEvents }: { initialEvents: ListeningEvent[] }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -31,9 +31,6 @@ export default function HistoryList({ initialEvents }: { initialEvents: Listenin
               className="bg-secondary border border-border px-10 py-2 text-sm focus:ring-1 focus:ring-primary outline-none transition-all w-64"
             />
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 border border-border hover:bg-secondary transition-colors text-sm font-bold uppercase tracking-widest">
-            <Filter className="w-4 h-4" /> Filter
-          </button>
         </div>
       </div>
 
@@ -45,7 +42,7 @@ export default function HistoryList({ initialEvents }: { initialEvents: Listenin
               <th className="px-6 py-4 text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Artist</th>
               <th className="px-6 py-4 text-[10px] uppercase tracking-widest font-bold text-muted-foreground hidden md:table-cell">Album</th>
               <th className="px-6 py-4 text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Played At</th>
-              <th className="px-6 py-4 text-[10px] uppercase tracking-widest font-bold text-muted-foreground w-10"></th>
+              <th className="px-6 py-4 text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Source</th>
             </tr>
           </thead>
           <tbody>
@@ -64,7 +61,7 @@ export default function HistoryList({ initialEvents }: { initialEvents: Listenin
                   {event.artistName}
                 </td>
                 <td className="px-6 py-4 text-sm text-muted-foreground hidden md:table-cell line-clamp-1">
-                  {event.albumName}
+                  {event.albumName ?? <span className="opacity-40">—</span>}
                 </td>
                 <td className="px-6 py-4 text-sm text-muted-foreground">
                   <div className="flex flex-col">
@@ -72,10 +69,8 @@ export default function HistoryList({ initialEvents }: { initialEvents: Listenin
                     <span className="text-[10px] font-mono uppercase opacity-60">{format(event.playedAt, "h:mm a")}</span>
                   </div>
                 </td>
-                <td className="px-6 py-4">
-                   <button className="p-2 hover:bg-zinc-800 transition-colors rounded-full opacity-0 group-hover:opacity-100">
-                     <MoreVertical className="w-4 h-4 text-muted-foreground" />
-                   </button>
+                <td className="px-6 py-4 text-[10px] font-mono uppercase text-muted-foreground/60">
+                  {event.provider}
                 </td>
               </tr>
             ))}

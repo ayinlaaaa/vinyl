@@ -1,11 +1,23 @@
-import { Disc, LayoutDashboard, History, Library, Settings, LogOut, Search, Bell } from "lucide-react";
+import { Disc, LayoutDashboard, History, Library, Settings } from "lucide-react";
 import Link from "next/link";
+import SidebarNav from "./SidebarNav";
+import { requireUser } from "@/lib/auth/current-user";
+import { signOut } from "@/app/actions/auth";
+import { LogOut } from "lucide-react";
 
-export default function DashboardLayout({
+// Every dashboard page reads live data from the database, so it must be rendered
+// per request – never pre-rendered at build time.
+export const dynamic = "force-dynamic";
+
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Redirects to /login when there is no valid session. Every page under /dashboard
+  // and every server action also calls requireUser() itself – defence in depth.
+  const user = await requireUser();
+
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       {/* Sidebar */}
@@ -15,58 +27,38 @@ export default function DashboardLayout({
           <span className="text-lg font-bold tracking-tighter uppercase font-playfair">Vinyl</span>
         </div>
         
-        <nav className="flex-1 px-4 space-y-2">
-          <NavItem href="/dashboard" icon={<LayoutDashboard className="w-4 h-4" />} label="Overview" active />
-          <NavItem href="/dashboard/history" icon={<History className="w-4 h-4" />} label="History" />
-          <NavItem href="/dashboard/collection" icon={<Library className="w-4 h-4" />} label="Collection" />
-          <NavItem href="/dashboard/settings" icon={<Settings className="w-4 h-4" />} label="Settings" />
-        </nav>
+        <SidebarNav
+          items={[
+            { href: "/dashboard", label: "Overview", icon: <LayoutDashboard className="w-4 h-4" /> },
+            { href: "/dashboard/history", label: "History", icon: <History className="w-4 h-4" /> },
+            { href: "/dashboard/collection", label: "Collection", icon: <Library className="w-4 h-4" /> },
+            { href: "/dashboard/settings", label: "Settings", icon: <Settings className="w-4 h-4" /> },
+          ]}
+        />
 
-        <div className="p-4 border-t border-border">
-          <button className="flex items-center gap-3 px-4 py-2 w-full text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            <LogOut className="w-4 h-4" />
-            Sign Out
-          </button>
+        <div className="p-4 border-t border-border space-y-3">
+          <div className="px-4 min-w-0">
+            <p className="text-sm font-medium truncate">{user.name ?? "Listener"}</p>
+            <p className="text-[10px] font-mono text-muted-foreground truncate">{user.email}</p>
+          </div>
+          <form action={signOut}>
+            <button
+              type="submit"
+              className="flex items-center gap-3 px-4 py-2 w-full text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign out
+            </button>
+          </form>
         </div>
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        <header className="h-16 border-b border-border flex items-center justify-between px-8">
-          <div className="relative w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input 
-              type="text" 
-              placeholder="Search your collection..." 
-              className="w-full bg-secondary/50 border-none rounded-none py-2 pl-10 pr-4 text-sm focus:ring-1 focus:ring-primary transition-all"
-            />
-          </div>
-          <div className="flex items-center gap-4">
-            <button className="p-2 hover:bg-secondary transition-colors relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full border-2 border-background"></span>
-            </button>
-            <div className="w-8 h-8 bg-zinc-800 rounded-none"></div>
-          </div>
-        </header>
+      <div className="flex-1 flex flex-col min-w-0">
         <main className="flex-1 overflow-y-auto">
           {children}
         </main>
       </div>
     </div>
-  );
-}
-
-function NavItem({ href, icon, label, active = false }: { href: string, icon: React.ReactNode, label: string, active?: boolean }) {
-  return (
-    <Link 
-      href={href} 
-      className={`flex items-center gap-3 px-4 py-2 text-sm font-medium transition-colors ${
-        active ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-      }`}
-    >
-      {icon}
-      {label}
-    </Link>
   );
 }

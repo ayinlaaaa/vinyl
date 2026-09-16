@@ -70,7 +70,7 @@ export default function LastfmConnection({ initialStatus }: LastfmConnectionProp
       {!isConnected ? (
         <form onSubmit={handleConnect} className="space-y-4">
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Link your Last.fm account to automatically sync your scrobbles. We'll use your public profile data.
+            Link your Last.fm account to sync your scrobbles from your public profile. Note: Last.fm does not report track durations, so listening time from this source is unknown.
           </p>
           <div className="flex flex-col sm:flex-row gap-2">
             <input 

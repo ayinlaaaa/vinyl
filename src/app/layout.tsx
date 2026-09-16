@@ -1,20 +1,20 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
+import localFont from "next/font/local";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const playfair = Playfair_Display({
+/**
+ * Fonts are self-hosted (Geist from the `geist` npm package, Playfair Display from the
+ * SIL-OFL licensed files in ./fonts) so builds never depend on Google Fonts being reachable.
+ */
+const playfair = localFont({
+  src: [
+    { path: "./fonts/PlayfairDisplay-Variable.woff2", weight: "400 900", style: "normal" },
+    { path: "./fonts/PlayfairDisplay-VariableItalic.woff2", weight: "400 900", style: "italic" },
+  ],
   variable: "--font-playfair",
-  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -30,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} font-sans antialiased`}
+        className={`${GeistSans.variable} ${GeistMono.variable} ${playfair.variable} font-sans antialiased`}
       >
         {children}
       </body>

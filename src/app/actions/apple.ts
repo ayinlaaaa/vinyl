@@ -1,15 +1,17 @@
 "use server";
 
 import { db } from "@/db";
-import { musicProviders, listeningHistory } from "@/db/schema";
-import { getOrCreateDefaultUser } from "@/lib/db-utils";
+import { musicProviders } from "@/db/schema";
+import { insertListeningRows } from "@/lib/history-repo";
+import { decrypt, encrypt } from "@/lib/crypto";
+import { requireUser } from "@/lib/auth/current-user";
 import { getRecentlyPlayed, normalizeAppleTrack } from "@/lib/providers/apple";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 export async function connectAppleMusic(musicUserToken: string) {
   try {
-    const user = await getOrCreateDefaultUser();
+    const user = await requireUser();
     
     const existing = await db.query.musicProviders.findFirst({
       where: and(
@@ -22,7 +24,7 @@ export async function connectAppleMusic(musicUserToken: string) {
       userId: user.id,
       provider: "apple" as const,
       providerUserId: "me", // Apple Music doesn't expose a simple user ID without extra calls
-      accessToken: musicUserToken, // We'll store the Music-User-Token here
+      accessToken: encrypt(musicUserToken), // Music-User-Token, encrypted at rest
       isConnected: true,
       updatedAt: new Date(),
     };
@@ -43,7 +45,7 @@ export async function connectAppleMusic(musicUserToken: string) {
 
 export async function syncAppleMusic() {
   try {
-    const user = await getOrCreateDefaultUser();
+    const user = await requireUser();
     const developerToken = process.env.APPLE_DEVELOPER_TOKEN;
 
     if (!developerToken) {
@@ -62,36 +64,12 @@ export async function syncAppleMusic() {
       return { success: false, error: "Apple Music not connected" };
     }
 
-    const tracks = await getRecentlyPlayed(developerToken, provider.accessToken);
-    
-    // Apple Music doesn't give us a timestamp for "recently played", 
-    // so we handle it as "new entries found now".
-    // To prevent massive duplicates, we can check if the track was played very recently.
-    
-    let count = 0;
-    for (const track of tracks) {
-      const normalized = {
-        ...normalizeAppleTrack(track),
-        userId: user.id,
-        provider: "apple",
-      };
+    const tracks = await getRecentlyPlayed(developerToken, decrypt(provider.accessToken));
 
-      // We use a combination of track ID and artist to check for "recent" matches
-      // This is a limitation of Apple Music's recently played API compared to Spotify/Lastfm
-      const existing = await db.query.listeningHistory.findFirst({
-        where: and(
-          eq(listeningHistory.trackName, normalized.trackName),
-          eq(listeningHistory.provider, "apple"),
-          // Check within the last hour to avoid immediate duplicates during sync
-          // In a real production app, we'd use a more robust strategy
-        )
-      });
-
-      if (!existing) {
-        await db.insert(listeningHistory).values(normalized);
-        count++;
-      }
-    }
+    // See normalizeAppleTrack: Apple gives no timestamps, so each track is recorded at
+    // most once per day with an estimated playedAt. This is NOT a real play log.
+    const syncedAt = new Date();
+    const count = await insertListeningRows(tracks.map((t) => normalizeAppleTrack(t, user.id, syncedAt)));
 
     await db.update(musicProviders)
       .set({ lastSyncedAt: new Date() })
@@ -101,12 +79,13 @@ export async function syncAppleMusic() {
     return { success: true, count };
   } catch (error) {
     console.error("Apple Music sync error:", error);
-    return { success: false, error: "Sync failed" };
+    const message = error instanceof Error ? error.message : "Sync failed";
+    return { success: false, error: `Apple Music sync failed: ${message}` };
   }
 }
 
 export async function disconnectAppleMusic() {
-  const user = await getOrCreateDefaultUser();
+  const user = await requireUser();
   await db.update(musicProviders)
     .set({ isConnected: false })
     .where(and(

@@ -2,18 +2,21 @@
 
 import { db } from "@/db";
 import { recaps } from "@/db/schema";
-import { getOrCreateDefaultUser } from "@/lib/db-utils";
+import { requireUser } from "@/lib/auth/current-user";
 import { generateWrappedData } from "@/lib/wrapped-service";
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 export async function saveCurrentYearRecap() {
-  const user = await getOrCreateDefaultUser();
+  const user = await requireUser();
   const year = new Date().getFullYear();
 
   try {
     const data = await generateWrappedData(user.id, year);
-    
+    if (!data) {
+      return { success: false, error: "Not enough listening data to build a recap for this year." };
+    }
+
     // Check if a recap for this year already exists
     const existing = await db.query.recaps.findFirst({
       where: and(
@@ -25,7 +28,7 @@ export async function saveCurrentYearRecap() {
 
     if (existing) {
       const [updated] = await db.update(recaps)
-        .set({ data: data as any, updatedAt: new Date() })
+        .set({ data, updatedAt: new Date() })
         .where(eq(recaps.id, existing.id))
         .returning();
       return { success: true, id: updated.id };
@@ -35,7 +38,7 @@ export async function saveCurrentYearRecap() {
       userId: user.id,
       title: `Vinyl ${year}`,
       type: "yearly",
-      data: data as any,
+      data,
       updatedAt: new Date(),
     }).returning();
 
@@ -47,7 +50,7 @@ export async function saveCurrentYearRecap() {
 }
 
 export async function toggleRecapVisibility(id: string, isPublic: boolean) {
-  const user = await getOrCreateDefaultUser();
+  const user = await requireUser();
   
   await db.update(recaps)
     .set({ isPublic, updatedAt: new Date() })

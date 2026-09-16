@@ -1,97 +1,77 @@
 import { db } from "@/db";
 import { listeningHistory, recaps } from "@/db/schema";
-import { desc, sql, eq } from "drizzle-orm";
-import { generateMockHistory, getStats, ListeningEvent } from "./mock-data";
-import { format } from "date-fns";
-import { getOrCreateDefaultUser } from "./db-utils";
+import { desc, eq } from "drizzle-orm";
+import { generateMockHistory } from "./mock-data";
+import { computeStats } from "./analytics";
+import type { ListeningEvent, ListeningSource } from "./listening";
+import { requireUser } from "./auth/current-user";
+
+type HistoryRow = typeof listeningHistory.$inferSelect;
+
+/** Convert a DB row into the shared ListeningEvent shape. */
+export function rowToEvent(row: HistoryRow): ListeningEvent {
+  return {
+    id: row.id,
+    trackName: row.trackName,
+    artistName: row.artistName,
+    albumName: row.albumName,
+    playedAt: row.playedAt,
+    durationMs: row.durationMs,
+    provider: row.provider as ListeningSource,
+  };
+}
+
+async function loadUserEvents(userId: string, limit?: number): Promise<ListeningEvent[]> {
+  const rows = await db.query.listeningHistory.findMany({
+    where: eq(listeningHistory.userId, userId),
+    orderBy: [desc(listeningHistory.playedAt)],
+    ...(limit ? { limit } : {}),
+  });
+  return rows.map(rowToEvent);
+}
 
 export async function getDashboardData() {
-  const dbEvents = await db.query.listeningHistory.findMany({
-    orderBy: [desc(listeningHistory.playedAt)],
-    limit: 500,
-  });
+  const user = await requireUser();
+  const events = await loadUserEvents(user.id, 500);
 
-  if (dbEvents.length === 0) {
+  if (events.length === 0) {
     const mock = generateMockHistory(7);
-    return {
-      stats: getStats(mock),
-      recent: mock.slice(0, 4),
-      isMock: true
-    };
+    return { stats: computeStats(mock), recent: mock.slice(0, 4), isMock: true };
   }
 
-  // Convert DB events to the expected ListeningEvent format
-  const events: ListeningEvent[] = dbEvents.map(e => ({
-    id: e.id,
-    trackName: e.trackName,
-    artistName: e.artistName,
-    albumName: e.albumName || "Unknown Album",
-    playedAt: e.playedAt,
-    durationMs: e.durationMs || 0,
-  }));
-
-  return {
-    stats: getStats(events),
-    recent: events.slice(0, 4),
-    isMock: false
-  };
+  return { stats: computeStats(events), recent: events.slice(0, 4), isMock: false };
 }
 
 export async function getHistoryData() {
-  const dbEvents = await db.query.listeningHistory.findMany({
-    orderBy: [desc(listeningHistory.playedAt)],
-    limit: 100,
-  });
+  const user = await requireUser();
+  const events = await loadUserEvents(user.id, 100);
 
-  if (dbEvents.length === 0) {
+  if (events.length === 0) {
     return { events: generateMockHistory(14), isMock: true };
   }
-
-  return {
-    events: dbEvents.map(e => ({
-      id: e.id,
-      trackName: e.trackName,
-      artistName: e.artistName,
-      albumName: e.albumName || "Unknown Album",
-      playedAt: e.playedAt,
-      durationMs: e.durationMs || 0,
-    })),
-    isMock: false
-  };
+  return { events, isMock: false };
 }
 
 export async function getCollectionData() {
-  const dbEvents = await db.query.listeningHistory.findMany();
-
-  if (dbEvents.length === 0) {
-    const mock = generateMockHistory(90);
-    const artistMap = new Map<string, number>();
-    mock.forEach(e => artistMap.set(e.artistName, (artistMap.get(e.artistName) || 0) + 1));
-    return {
-      artists: Array.from(artistMap.entries())
-        .map(([name, count]) => ({ name, count }))
-        .sort((a,b) => b.count - a.count),
-      isMock: true
-    };
-  }
+  const user = await requireUser();
+  const events = await loadUserEvents(user.id);
+  const source = events.length === 0 ? generateMockHistory(90) : events;
 
   const artistMap = new Map<string, number>();
-  dbEvents.forEach(e => artistMap.set(e.artistName, (artistMap.get(e.artistName) || 0) + 1));
-  
+  for (const e of source) artistMap.set(e.artistName, (artistMap.get(e.artistName) ?? 0) + 1);
+
   return {
-    artists: Array.from(artistMap.entries())
+    artists: [...artistMap.entries()]
       .map(([name, count]) => ({ name, count }))
-      .sort((a,b) => b.count - a.count),
-    isMock: false
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+    isMock: events.length === 0,
   };
 }
 
 export async function getRecapsData() {
-  const user = await getOrCreateDefaultUser();
-  const dbRecaps = await db.query.recaps.findMany({
+  const user = await requireUser();
+  return db.query.recaps.findMany({
     where: eq(recaps.userId, user.id),
     orderBy: [desc(recaps.createdAt)],
   });
-
-  return dbRecaps;
 }
