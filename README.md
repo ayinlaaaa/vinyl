@@ -77,9 +77,10 @@ src/
   app/                 Next.js routes (App Router)
     (auth)/            /login and /signup
     actions/           Server Actions: auth, import, provider connect/sync, recaps
-    api/               Route handlers: health check, Spotify OAuth callback
+    api/               Route handlers: health check, Spotify OAuth callback, recap OG images
     dashboard/         Authenticated-area pages (overview, history, collection, settings, wrapped)
-    recap/[id]/        Public, shareable recap page
+    recap/[id]/        Shareable recap (public, or owner-only if private)
+    u/[handle]/        Public listener profile (opt-in)
   db/                  Drizzle schema + connection pool
   lib/
     auth/              password hashing, sessions, requireUser()

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Upload, FileJson, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Upload, FileJson, Loader2 } from "lucide-react";
+import StatusMessage from "@/app/components/StatusMessage";
 import { importListeningHistory, type ImportResult } from "@/app/actions/import";
 
 export default function ImportSection() {
@@ -104,19 +105,14 @@ export default function ImportSection() {
       </div>
 
       {status && (
-        <div className={`p-4 text-sm font-medium space-y-2 ${
-          status.type === "success" ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
-        }`} role="status">
-          <div className="flex items-center gap-3">
-            {status.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-            {status.message}
-          </div>
+        <StatusMessage type={status.type}>
+          <p>{status.message}</p>
           {status.details && status.details.length > 0 && (
-            <ul className="text-xs font-mono opacity-80 pl-7 list-disc space-y-1">
+            <ul className="text-xs font-mono opacity-80 list-disc pl-4 space-y-1">
               {status.details.map((d) => <li key={d}>{d}</li>)}
             </ul>
           )}
-        </div>
+        </StatusMessage>
       )}
     </section>
   );

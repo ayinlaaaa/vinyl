@@ -1,8 +1,19 @@
 # VINYL — Project Status
 
-_Initial audit: 2026-09-16 against commit `6c8e0e5`. Updated after **Phase 10 — Analytics accuracy**._
+_Initial audit: 2026-09-16 against commit `6c8e0e5`. Updated after **Phase 11 — Wrapped polish**._
 
 ## 0. Changelog
+
+### Phase 11 — Wrapped polish ✅
+
+- VU-meter amber (`#e8b84a`, `text-vu` / `bg-vu`) is the Archive accent: recap chrome, charts, success states, landing CTAs. Destructive states use the theme `destructive` token instead of generic emerald/rose.
+- Dashboard shell is responsive: sticky sidebar on desktop, overlay drawer + top bar on small screens. Landing header has a mobile menu. History table scrolls horizontally.
+- Recap story honors `prefers-reduced-motion` (no disc spin, no slide scale, chart animation off). Global CSS short-circuits animations/transitions.
+- Recap sharing: keyboard and swipe navigation; side tap zones no longer cover the save/share controls; owners can view private recaps; visitors no longer see “Save & Share”.
+- Open Graph images at `/api/og/recap/[id]` (alias `/api/og/recap?id=`). Public recaps expose `og:image` / Twitter large-image cards. Private recaps are `noindex`.
+- Public profiles: optional handle, `/u/[handle]`, profile visibility toggle, “new recaps start public” default. Profiles and recaps stay private until explicitly published. Direct recap links remain independent of profile visibility.
+- Collection sort actually sorts (most/least played, name A–Z / Z–A). Account deletion (password + `DELETE` confirm) lives in the danger zone; the shared guest account cannot be deleted.
+- Schema migration `drizzle/0002_phase11_profiles.sql`. Unit tests for handles, privacy rules, collection sort, OG payload parsing, and listening vibe.
 
 ### Phase 10 — Analytics accuracy ✅
 
@@ -64,13 +75,13 @@ repository.** The real stack is:
 | Framework | **Next.js 16.2** (App Router, Turbopack, React 19) | Server Components + Server Actions; there is no separate Express API |
 | Language | TypeScript 5.9, `strict: true` | `tsc --noEmit` passes with 0 errors |
 | Styling | **Tailwind CSS v4** (`@import "tailwindcss"`, `@theme`) + CSS variables | No CSS modules / styled-components |
-| Fonts | `next/font/google`: Geist, Geist Mono, Playfair Display | Downloaded at build time from Google Fonts |
+| Fonts | Self-hosted Geist + Playfair Display | No Google Fonts at build time |
 | Charts | Recharts 3 | Used only in `DashboardCharts.tsx` |
 | Animation | framer-motion 13 | Used only in the Wrapped story |
 | Icons | lucide-react | |
 | Database | **PostgreSQL** via `pg` + **Drizzle ORM 0.45** | Not Supabase. Schema pushed with `drizzle-kit push` |
 | Auth | **Email + password, server-side sessions** (P9.2) | scrypt, httpOnly cookie, `requireUser()` on every page/action. Optional dev-only guest mode. |
-| Tests | **Vitest** | 34 unit tests: import normalisation, dedup keys, analytics, timezone, name normalisation, password hashing, token encryption |
+| Tests | **Vitest** | Unit tests: import normalisation, dedup keys, analytics, timezone, name normalisation, password hashing, token encryption, handles, privacy, collection sort, OG payload, vibe |
 | CI / Docker / deploy config | **None** | |
 
 The original upload had no `.gitignore`, README, `.env.example` or lockfile, and the Git history
@@ -89,22 +100,23 @@ Legend: ✅ verified working · ⚠️ partially working / has bugs · ❌ broke
 
 | Route | Status | Notes |
 |---|---|---|
-| `/` landing page | ⚠️ | Renders. Two CTAs linked to `/auth/signup` and `/demo`, both 404 **[fixed P9.1 — repointed]**. Footer social links go to `#`. |
+| `/` landing page | ✅ **[P11]** | Renders. CTAs go to `/signup` and `/login`. Mobile nav. Footer links to Features, Sign in, and the GitHub repo. |
 | `/dashboard` overview | ⚠️ | Renders. Shows stats, weekly chart, top artists, recent plays, saved recaps. Displayed hard-coded fake trends `+12.5%` / `-2.1%` **[fixed P9.1 — removed]**. "DEMO MODE" label appears when DB is empty. |
 | `/dashboard/history` | ✅ | Renders last 100 plays with client-side search. Falls back to mock data with an `isMock` flag. |
-| `/dashboard/collection` | ⚠️ | Renders artists by play count with grid/list toggle. **"Sort" button does nothing.** |
+| `/dashboard/collection` | ✅ **[P11]** | Artists with grid/list toggle and a working sort control (plays / name). |
 | `/dashboard/settings` | ✅ | Renders Spotify / Apple Music / Last.fm connection cards, JSON import, danger zone. |
 | `/dashboard/wrapped` | ✅ | Generates the current-year recap from the DB; shows a clear "Not enough data yet" state when empty (verified). |
 | `/recap/[id]` public recap | ✅ **[fixed P9.1]** | Was: always returned 404, even for a public recap (verified with a real row). Cause: Next.js 16 passes `params` as a `Promise`; the page reads `params.id` synchronously. Sharing links are therefore broken. |
 | `/api/health` | ✅ | Returns `{ ok: true }` when the DB is reachable. |
 | `/api/auth/spotify/callback` | ❔ | Code looks correct; needs Spotify credentials to test. |
-| `/api/og/recap` | ❌ | Referenced in recap Open Graph metadata but the route **does not exist**. |
+| `/api/og/recap/[id]` | ✅ **[P11]** | 1200×630 recap card for public recaps; 404 when private or missing. Alias: `/api/og/recap?id=`. |
+| `/u/[handle]` | ✅ **[P11]** | Opt-in public listener profile listing public recaps. 404 when private/unknown (same copy, no enumeration). |
 
 ### Dashboard shell (`dashboard/layout.tsx`)
 
 - Sidebar "Overview" was always highlighted **[fixed P9.1 — `SidebarNav` uses `usePathname`]**.
 - Header search / bell / avatar / "Sign Out" were decorative only **[fixed P9.1 — removed until real features exist]**.
-- ❌ Sidebar is fixed 256px wide with no mobile/collapsed layout; the dashboard is not usable on small screens.
+- Sidebar is a drawer on small screens and sticky 256px on `md+` **[fixed P11]**.
 
 ### Data pipeline
 
@@ -132,9 +144,9 @@ Legend: ✅ verified working · ⚠️ partially working / has bugs · ❌ broke
 ### Design ("The Archive" direction)
 
 - Existing: dark near-black theme (`#0a0a0a`), Playfair serif headlines, Geist mono, zinc greys, square corners. Good foundation, consistent across pages.
-- **Missing: the VU-meter amber accent is not defined or used anywhere** (0 occurrences). Success/error states use Tailwind emerald/rose instead of the brand palette.
-- Tailwind `font-playfair` utility is used 38 times but **never defined in `@theme`**; it only works today because Tailwind v4 happens to resolve it via the `--font-playfair` variable. Fragile; should be declared explicitly.
-- Landing page includes a "Now Playing / 01" decorative block and a Tolstoy quote — fine, but the "Twitter / Instagram" footer links are dead.
+- VU-meter amber is defined as `--color-vu` / `text-vu` / `bg-vu` and used for recap chrome, success, charts, and landing highlights **[P11]**.
+- Tailwind `font-playfair` is declared in `@theme` **[P9.1 / P11]**.
+- Landing page includes a "Now Playing / 01" decorative block, a VU meter, and a Tolstoy quote. Footer links to in-product destinations **[P11]**.
 
 ---
 
@@ -147,7 +159,7 @@ Legend: ✅ verified working · ⚠️ partially working / has bugs · ❌ broke
 | `eslint .` | ✅ 0 errors **[fixed P9.1]** — was 5 errors: 4× `react/no-unescaped-entities` (landing page, Last.fm card, Wrapped story), 1× `react-hooks/error-boundaries` in `dashboard/wrapped/page.tsx` (JSX constructed inside `try/catch`). |
 | `next build` | ✅ passes **[fixed P9.1 — fonts self-hosted]** — previously failed in this sandbox because `next/font/google` cannot reach `fonts.googleapis.com`. On a machine with internet it would build, but this is a real production risk: a Google Fonts outage would break deploys. Self-hosting the three fonts removes the dependency. |
 | `next dev` | ✅ Runs; falls back to system fonts. |
-| Tests | ✅ 34 Vitest unit tests **[expanded P10]** |
+| Tests | ✅ 53 Vitest unit tests **[expanded P11]** |
 
 ---
 
@@ -185,16 +197,12 @@ Legend: ✅ verified working · ⚠️ partially working / has bugs · ❌ broke
 
 ---
 
-## 7. Known issues (remaining after Phase 10)
+## 7. Known issues (remaining after Phase 11)
 
 1. **No password reset or email verification** — requires an email provider (not yet chosen).
 2. Apple Music can never provide real play history (API limitation) — labelled, but consider hiding behind an "experimental" flag.
-3. Collection page "Sort" button does nothing; dashboard is not usable on small screens (fixed 256 px sidebar).
-4. `/api/og/recap` social image endpoint does not exist.
-5. Design: amber accent from "The Archive" brief still unused; success/error states use generic emerald/rose.
-6. No account-deletion UI (the "Clear All Data" button removes data but keeps the account).
-7. No CI workflow runs `npm run check` on push.
+3. No CI workflow runs `npm run check` on push. No Dockerfile yet.
 
-## 8. Recommended next milestone: **Phase 11 — Wrapped polish**
+## 8. Recommended next milestone: **Phase 12 — Launch ops**
 
-With data integrity, account boundaries, and analytics accuracy in place, the next milestone is presentation and sharing: amber accent, responsive layout, reduced-motion support, OG images, and then public profiles and privacy controls.
+Presentation and sharing are in place. Remaining for a public launch: choose an email provider and add password reset / verification, run `npm run db:migrate` in production with `TOKEN_ENCRYPTION_KEY` and `NEXT_PUBLIC_APP_URL` set, add a CI workflow, and (optionally) a Dockerfile.

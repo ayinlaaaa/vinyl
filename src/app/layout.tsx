@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { getSiteUrl } from "@/lib/site-url";
 import "./globals.css";
 
 /**
@@ -18,6 +19,7 @@ const playfair = localFont({
 });
 
 export const metadata: Metadata = {
+  metadataBase: getSiteUrl(),
   title: "Vinyl | High Fidelity Music Analytics",
   description: "Explore your listening history with precision and style.",
 };

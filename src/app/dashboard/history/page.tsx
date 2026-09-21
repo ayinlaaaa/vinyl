@@ -6,7 +6,7 @@ export default async function HistoryPage() {
   const { events, isMock, timezone } = await getHistoryData();
 
   return (
-    <div className="p-8 md:p-12 space-y-8 max-w-7xl mx-auto">
+    <div className="p-6 md:p-12 space-y-8 max-w-7xl mx-auto">
       {isMock && (
         <div className="bg-secondary/50 border border-border p-4 flex items-center justify-between">
           <p className="text-xs font-mono text-muted-foreground flex items-center gap-2">

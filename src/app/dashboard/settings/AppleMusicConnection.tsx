@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { connectAppleMusic, syncAppleMusic, disconnectAppleMusic } from "@/app/actions/apple";
 import { getAppleDeveloperToken } from "@/app/actions/apple-auth";
-import { Apple, CheckCircle2, AlertCircle, Loader2, RefreshCw, Unlink, ExternalLink } from "lucide-react";
+import { Apple, Loader2, RefreshCw, Unlink, ExternalLink } from "lucide-react";
+import StatusMessage from "@/app/components/StatusMessage";
 
 interface AppleMusicConnectionProps {
   initialStatus: {
@@ -108,7 +109,7 @@ export default function AppleMusicConnection({ initialStatus }: AppleMusicConnec
           <h3 className="text-xl font-playfair font-bold">Apple Music Integration</h3>
         </div>
         {isConnected && (
-          <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-1 font-bold uppercase tracking-widest">Connected</span>
+          <span className="text-[10px] bg-vu/10 text-vu px-2 py-1 font-bold uppercase tracking-widest">Connected</span>
         )}
       </div>
 
@@ -147,7 +148,7 @@ export default function AppleMusicConnection({ initialStatus }: AppleMusicConnec
               <button 
                 onClick={handleDisconnect}
                 disabled={isLoading}
-                className="p-2 hover:bg-secondary transition-colors text-muted-foreground hover:text-rose-500"
+                className="p-2 hover:bg-secondary transition-colors text-muted-foreground hover:text-destructive"
                 title="Disconnect"
               >
                 <Unlink className="w-4 h-4" />
@@ -162,14 +163,7 @@ export default function AppleMusicConnection({ initialStatus }: AppleMusicConnec
         </div>
       )}
 
-      {status && (
-        <div className={`flex items-center gap-3 p-4 text-sm font-medium ${
-          status.type === "success" ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
-        }`}>
-          {status.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-          {status.message}
-        </div>
-      )}
+      {status && <StatusMessage type={status.type}>{status.message}</StatusMessage>}
     </section>
   );
 }

@@ -3,13 +3,18 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { TrendingUp } from "lucide-react";
 import type { ListeningStats } from "@/lib/analytics";
+import { usePrefersReducedMotion } from "@/lib/use-prefers-reduced-motion";
+
+const VU = "#e8b84a";
 
 export default function DashboardCharts({ stats }: { stats: ListeningStats }) {
+  const reduceMotion = usePrefersReducedMotion();
+
   return (
-    <div className="lg:col-span-2 bg-secondary/30 border border-border p-8 space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="lg:col-span-2 bg-secondary/30 border border-border p-6 md:p-8 space-y-8">
+      <div className="flex items-center justify-between gap-4">
         <h3 className="text-lg font-playfair font-bold flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-muted-foreground" />
+          <TrendingUp className="w-5 h-5 text-vu" />
           Listening Velocity
         </h3>
         <p className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Plays by weekday</p>
@@ -19,36 +24,36 @@ export default function DashboardCharts({ stats }: { stats: ListeningStats }) {
           <AreaChart data={stats.weekdayActivity}>
             <defs>
               <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="currentColor" stopOpacity={0.1}/>
-                <stop offset="95%" stopColor="currentColor" stopOpacity={0}/>
+                <stop offset="5%" stopColor={VU} stopOpacity={0.35}/>
+                <stop offset="95%" stopColor={VU} stopOpacity={0}/>
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
-            <XAxis 
-              dataKey="name" 
-              axisLine={false} 
-              tickLine={false} 
+            <XAxis
+              dataKey="name"
+              axisLine={false}
+              tickLine={false}
               tick={{ fontSize: 10, fill: "#71717a" }}
               dy={10}
             />
-            <YAxis 
-              axisLine={false} 
-              tickLine={false} 
+            <YAxis
+              axisLine={false}
+              tickLine={false}
               tick={{ fontSize: 10, fill: "#71717a" }}
             />
-            <Tooltip 
+            <Tooltip
               contentStyle={{ backgroundColor: "#18181b", border: "1px solid #27272a", borderRadius: "0px" }}
               itemStyle={{ color: "#fdfdfc", fontSize: "12px" }}
-              cursor={{ stroke: '#27272a', strokeWidth: 1 }}
+              cursor={{ stroke: "#27272a", strokeWidth: 1 }}
             />
-            <Area 
-              type="monotone" 
-              dataKey="count" 
-              stroke="currentColor" 
-              fillOpacity={1} 
-              fill="url(#colorCount)" 
+            <Area
+              type="monotone"
+              dataKey="count"
+              stroke={VU}
+              fillOpacity={1}
+              fill="url(#colorCount)"
               strokeWidth={2}
-              animationDuration={1500}
+              animationDuration={reduceMotion ? 0 : 1500}
             />
           </AreaChart>
         </ResponsiveContainer>
