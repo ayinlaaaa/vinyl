@@ -32,6 +32,7 @@ You need a running PostgreSQL 14+ instance. Any connection string works in `DATA
 |---|---|
 | `npm run dev` | Start the dev server |
 | `npm run build` / `npm start` | Production build / serve |
+| `npm run build:migrate` | Apply migrations and run production build (recommended for Vercel) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
 | `npm test` | Vitest unit tests (`src/**/*.test.ts`) |
@@ -39,6 +40,18 @@ You need a running PostgreSQL 14+ instance. Any connection string works in `DATA
 | `npm run db:generate` | Create a SQL migration from `src/db/schema.ts` changes |
 | `npm run db:migrate` | Apply pending migrations (use this in production) |
 | `npm run db:push` | Push the schema directly without a migration (local prototyping only) |
+
+## Deploying to Vercel
+
+VINYL is ready to deploy directly on Vercel:
+
+1. Import `ayinlaaaa/vinyl` in [vercel.com/new](https://vercel.com/new).
+2. Set Environment Variables:
+   - `DATABASE_URL`: Hosted PostgreSQL connection string (e.g. Neon, Supabase, Railway).
+   - `TOKEN_ENCRYPTION_KEY`: 32-byte Base64 key for encrypting provider tokens.
+   - `NEXT_PUBLIC_APP_URL`: Production URL (e.g. `https://your-domain.vercel.app`).
+3. Set Build Command to `npm run build:migrate` (or run `npm run db:migrate` manually).
+4. See full deployment documentation in [`docs/VERCEL_DEPLOYMENT.md`](docs/VERCEL_DEPLOYMENT.md).
 
 ## Data sources — what each one can and cannot provide
 
