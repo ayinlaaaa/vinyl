@@ -9,6 +9,8 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  /** IANA zone used for calendar analytics (for example, America/New_York). */
+  timezone: text("timezone").default("UTC").notNull(),
 });
 
 /**
@@ -46,6 +48,9 @@ export const listeningHistory = pgTable("listening_history", {
   
   trackName: text("track_name").notNull(),
   artistName: text("artist_name").notNull(),
+  /** Canonical keys keep version suffixes and casing from splitting analytics. */
+  trackKey: text("track_key").notNull().default(""),
+  artistKey: text("artist_key").notNull().default(""),
   albumName: text("album_name"),
   albumArtUrl: text("album_art_url"),
   

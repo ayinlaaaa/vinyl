@@ -4,6 +4,7 @@ import SpotifyConnection from "./SpotifyConnection";
 import AppleMusicConnection from "./AppleMusicConnection";
 import ImportSection from "./ImportSection";
 import DangerZone from "./DangerZone";
+import TimezoneSettings from "./TimezoneSettings";
 import { db } from "@/db";
 import { musicProviders } from "@/db/schema";
 import { requireUser } from "@/lib/auth/current-user";
@@ -44,6 +45,7 @@ export default async function SettingsPage() {
       </div>
 
       <div className="space-y-8">
+        <TimezoneSettings initialTimezone={user.timezone} />
         <SpotifyConnection initialStatus={spotifyStatus} />
         <AppleMusicConnection initialStatus={appleStatus} />
         <LastfmConnection initialStatus={lastfmStatus} />

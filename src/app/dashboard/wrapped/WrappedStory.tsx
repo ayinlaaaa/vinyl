@@ -6,6 +6,7 @@ import { Disc, X, ChevronRight, ChevronLeft, Share2, Play, Globe, Lock, Copy, Ch
 import { WrappedData } from "@/lib/wrapped-service";
 import { saveCurrentYearRecap, toggleRecapVisibility } from "@/app/actions/recaps";
 import Link from "next/link";
+import DataQualityNotice from "@/app/components/DataQualityNotice";
 
 export default function WrappedStory({ data, initialId, initialIsPublic }: { data: WrappedData, initialId?: string, initialIsPublic?: boolean }) {
   const [recapId, setRecapId] = useState(initialId);
@@ -54,6 +55,11 @@ export default function WrappedStory({ data, initialId, initialIsPublic }: { dat
              />
           </div>
           <p className="text-lg text-muted-foreground">That&apos;s {data.totalPlays.toLocaleString()} total plays across {data.uniqueArtists} different artists.</p>
+          <DataQualityNotice
+            estimatedCount={data.estimatedTimestampCount ?? (data.containsEstimatedTimestamps ? data.totalPlays : 0)}
+            verifiedCount={data.verifiedTimestampCount ?? (data.containsEstimatedTimestamps ? 0 : data.totalPlays)}
+            timezone={data.timezone}
+          />
           {data.playsWithoutDuration > 0 && (
             <p className="text-xs font-mono text-muted-foreground/70">
               Minimum figure: {data.playsWithoutDuration.toLocaleString()} plays had no duration data (Last.fm does not report it).

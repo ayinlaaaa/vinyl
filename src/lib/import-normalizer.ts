@@ -5,6 +5,7 @@ import {
   toDurationMs,
   type NewListeningRow,
 } from "./listening";
+import { normalizeMusicPair } from "./music-normalizer";
 
 /**
  * Turns an arbitrary JSON array (uploaded by the user) into rows we can insert.
@@ -64,17 +65,21 @@ function normalizeOne(item: Rec, userId: string): NewListeningRow | string {
     ? buildExternalId("import", [playedAt.toISOString(), spotifyUri])
     : buildExternalId("import", [playedAt.toISOString(), artistName, trackName]);
 
+  const normalized = normalizeMusicPair(artistName, trackName);
+
   return {
     userId,
     provider: "import",
-    trackName,
-    artistName,
+    trackName: normalized.track.displayName,
+    artistName: normalized.artist.displayName,
     albumName,
     albumArtUrl: null,
     playedAt,
     durationMs,
     externalId,
     metadata: spotifyUri ? { spotifyTrackUri: spotifyUri } : null,
+    artistKey: normalized.artist.canonicalKey,
+    trackKey: normalized.track.canonicalKey,
   };
 }
 
