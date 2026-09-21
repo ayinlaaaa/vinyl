@@ -22,24 +22,24 @@ export default function HistoryList({ initialEvents, timezone }: { initialEvents
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2">Full Journal</p>
-          <h1 className="text-5xl font-playfair font-bold">Listening History</h1>
+          <h1 className="text-4xl md:text-5xl font-playfair font-bold">Listening History</h1>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="relative">
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          <div className="relative w-full md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input 
               type="text" 
               placeholder="Search history..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-secondary border border-border px-10 py-2 text-sm focus:ring-1 focus:ring-primary outline-none transition-all w-64"
+              className="bg-secondary border border-border px-10 py-2 text-sm focus:ring-1 focus:ring-vu outline-none transition-all w-full"
             />
           </div>
         </div>
       </div>
 
-      <div className="border border-border">
-        <table className="w-full text-left border-collapse">
+      <div className="border border-border overflow-x-auto">
+        <table className="w-full text-left border-collapse min-w-[640px]">
           <thead>
             <tr className="bg-secondary/50 border-b border-border">
               <th className="px-6 py-4 text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Track</th>

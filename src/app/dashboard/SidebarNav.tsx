@@ -10,7 +10,7 @@ interface NavItem {
   icon: ReactNode;
 }
 
-export default function SidebarNav({ items }: { items: NavItem[] }) {
+export default function SidebarNav({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => void }) {
   const pathname = usePathname();
 
   return (
@@ -22,6 +22,7 @@ export default function SidebarNav({ items }: { items: NavItem[] }) {
           <Link
             key={item.href}
             href={item.href}
+            onClick={onNavigate}
             aria-current={active ? "page" : undefined}
             className={`flex items-center gap-3 px-4 py-2 text-sm font-medium transition-colors ${
               active ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"

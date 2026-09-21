@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { createSession, destroySession, purgeExpiredSessions } from "@/lib/auth/session";
 import { isGuestLoginAllowed } from "@/lib/auth/current-user";
+import { GUEST_EMAIL } from "@/lib/auth/guest";
 import { checkAuthRateLimit } from "@/lib/auth/rate-limit";
 import { isValidTimezone } from "@/lib/timezone";
 import {
@@ -15,8 +16,6 @@ import {
 export interface AuthFormState {
   error?: string;
 }
-
-const GUEST_EMAIL = "guest@vinyl.audio";
 
 /** Only allow redirects back to our own pages – never to an external URL. */
 function safeNext(value: FormDataEntryValue | null): string {

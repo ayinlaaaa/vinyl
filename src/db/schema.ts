@@ -11,7 +11,15 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   /** IANA zone used for calendar analytics (for example, America/New_York). */
   timezone: text("timezone").default("UTC").notNull(),
-});
+  /** Public URL slug (`/u/[handle]`). Null until the user claims one. */
+  handle: text("handle"),
+  /** When false, `/u/[handle]` 404s for everyone except the owner. */
+  profilePublic: boolean("profile_public").default(false).notNull(),
+  /** New recaps start public when true. Existing recaps are unchanged. */
+  recapsPublicByDefault: boolean("recaps_public_by_default").default(false).notNull(),
+}, (table) => [
+  uniqueIndex("users_handle_idx").on(table.handle),
+]);
 
 /**
  * Server-side sessions. The browser only holds a random opaque token in an httpOnly cookie;
@@ -82,4 +90,6 @@ export const recaps = pgTable("recaps", {
   isPublic: boolean("is_public").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("recaps_user_public_idx").on(table.userId, table.isPublic),
+]);

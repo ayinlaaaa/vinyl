@@ -19,12 +19,12 @@ export default async function DashboardPage() {
   });
 
   return (
-    <div className="p-8 md:p-12 space-y-12 max-w-7xl mx-auto">
+    <div className="p-6 md:p-12 space-y-12 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2">Listener Overview</p>
-          <h1 className="text-5xl font-playfair font-bold">Welcome back.</h1>
+          <h1 className="text-4xl md:text-5xl font-playfair font-bold">Welcome back.</h1>
           {isMock && (
              <p className="mt-4 text-xs font-mono text-muted-foreground flex items-center gap-2">
                <Database className="w-3 h-3" /> DEMO MODE: NO DATA IMPORTED
@@ -58,15 +58,16 @@ export default async function DashboardPage() {
         href="/dashboard/wrapped" 
         className="block bg-primary text-primary-foreground p-8 md:p-12 relative overflow-hidden group hover:opacity-95 transition-opacity"
       >
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-vu" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
           <div className="space-y-4">
-            <p className="text-[10px] uppercase tracking-[0.4em] font-bold opacity-60">High Fidelity Recap</p>
+            <p className="text-[10px] uppercase tracking-[0.4em] font-bold text-vu">High Fidelity Recap</p>
             <h2 className="text-4xl md:text-6xl font-playfair font-black leading-tight">
               YOUR YEAR <br /> IN HI-FI.
             </h2>
-            <p className="text-lg opacity-80 font-playfair italic">Explore your 2026 listening journey.</p>
+            <p className="text-lg opacity-80 font-playfair italic">Explore your {new Date().getFullYear()} listening journey.</p>
           </div>
-          <div className="bg-primary-foreground text-primary px-8 py-4 text-xs font-bold uppercase tracking-widest flex items-center gap-2 group-hover:gap-4 transition-all">
+          <div className="bg-vu text-vu-foreground px-8 py-4 text-xs font-bold uppercase tracking-widest flex items-center gap-2 group-hover:gap-4 transition-all">
             Open Recap <Disc className="w-4 h-4 animate-spin-slow" />
           </div>
         </div>
@@ -147,7 +148,7 @@ export default async function DashboardPage() {
               >
                 <div className="flex items-center justify-between mb-2">
                    <p className="text-[10px] uppercase tracking-widest font-bold opacity-40">{recap.type}</p>
-                   {recap.isPublic ? <Globe className="w-3 h-3 text-emerald-500" /> : <Lock className="w-3 h-3 text-muted-foreground" />}
+                   {recap.isPublic ? <Globe className="w-3 h-3 text-vu" /> : <Lock className="w-3 h-3 text-muted-foreground" />}
                 </div>
                 <h4 className="text-xl font-playfair font-bold group-hover:underline">{recap.title}</h4>
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-4">Saved {new Date(recap.createdAt).toLocaleDateString()}</p>

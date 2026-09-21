@@ -4,6 +4,9 @@ import { eq } from "drizzle-orm";
 import { computeStats, peakHour } from "./analytics";
 import { rowToEvent } from "./data-service";
 import { getZonedDateParts } from "./timezone";
+import { describeVibe } from "./vibe";
+
+export { describeVibe } from "./vibe";
 
 export interface WrappedData {
   timePeriod: string;
@@ -26,14 +29,6 @@ export interface WrappedData {
 
 /** A recap needs at least this many plays to be meaningful. */
 export const MIN_PLAYS_FOR_RECAP = 10;
-
-export function describeVibe(hour: number | null): string {
-  if (hour === null) return "Balanced Listener";
-  if (hour >= 22 || hour <= 4) return "Night Owl";
-  if (hour >= 5 && hour <= 9) return "Early Bird";
-  if (hour >= 14 && hour <= 17) return "Afternoon Connoisseur";
-  return "Balanced Listener";
-}
 
 /**
  * Build the yearly recap for one user. Calendar years are evaluated in the user's

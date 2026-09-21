@@ -67,14 +67,14 @@ export default function AuthForm({ mode, next, guestAllowed }: { mode: "login" |
         </div>
 
         {error && (
-          <p role="alert" className="flex items-center gap-2 text-sm text-rose-400">
+          <p role="alert" className="flex items-center gap-2 text-sm text-destructive">
             <AlertCircle className="w-4 h-4 shrink-0" /> {error}
           </p>
         )}
 
         <button
           type="submit" disabled={pending}
-          className="w-full py-4 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-60 transition-opacity"
+          className="w-full py-4 bg-vu text-vu-foreground text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-60 transition-opacity"
         >
           {pending && <Loader2 className="w-4 h-4 animate-spin" />}
           {mode === "login" ? "Sign in" : "Create account"}

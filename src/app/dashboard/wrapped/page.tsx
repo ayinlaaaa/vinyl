@@ -15,8 +15,8 @@ export default async function WrappedPage() {
 
   if (!data) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center space-y-8">
-        <Disc className="w-20 h-20 text-muted-foreground/20" />
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center space-y-8">
+        <Disc className="w-20 h-20 text-vu/20" />
         <div className="space-y-4 max-w-md">
           <h1 className="text-4xl font-playfair font-bold">Not enough data yet.</h1>
           <p className="text-muted-foreground leading-relaxed">
@@ -38,9 +38,18 @@ export default async function WrappedPage() {
     where: and(
       eq(recaps.userId, user.id),
       eq(recaps.type, "yearly"),
-      eq(recaps.title, `Vinyl ${currentYear}`)
+      eq(recaps.title, `Vinyl ${currentYear}`),
     ),
   });
 
-  return <WrappedStory data={data} initialId={existing?.id} initialIsPublic={existing?.isPublic} />;
+  return (
+    <WrappedStory
+      data={data}
+      initialId={existing?.id}
+      initialIsPublic={existing?.isPublic}
+      mode="editor"
+      exitHref="/dashboard"
+      owner={{ handle: user.handle, name: user.name, profilePublic: user.profilePublic }}
+    />
+  );
 }

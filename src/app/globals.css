@@ -34,11 +34,16 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
+  /* VU-meter amber — the Archive accent. Use for success, highlights, recap chrome. */
+  --color-vu: #e8b84a;
+  --color-vu-foreground: #140f05;
+
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
-  
+
   --animate-spin-slow: spin 8s linear infinite;
+  --animate-vu: vu 1.1s ease-in-out infinite;
 }
 
 @keyframes spin {
@@ -47,6 +52,16 @@
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes vu {
+  0%,
+  100% {
+    transform: scaleY(0.28);
+  }
+  50% {
+    transform: scaleY(1);
   }
 }
 
@@ -64,13 +79,13 @@
     --secondary-foreground: #1a1a1a;
     --muted: #f4f4f5;
     --muted-foreground: #71717a;
-    --accent: #f4f4f5;
-    --accent-foreground: #1a1a1a;
-    --destructive: #ef4444;
+    --accent: #e8b84a;
+    --accent-foreground: #140f05;
+    --destructive: #b42318;
     --destructive-foreground: #fdfdfc;
     --border: #e4e4e7;
     --input: #e4e4e7;
-    --ring: #1a1a1a;
+    --ring: #e8b84a;
     --radius: 0.25rem;
   }
 
@@ -87,13 +102,13 @@
     --secondary-foreground: #fdfdfc;
     --muted: #1a1a1a;
     --muted-foreground: #a1a1aa;
-    --accent: #1a1a1a;
-    --accent-foreground: #fdfdfc;
-    --destructive: #7f1d1d;
-    --destructive-foreground: #fdfdfc;
+    --accent: #e8b84a;
+    --accent-foreground: #140f05;
+    --destructive: #e07060;
+    --destructive-foreground: #1a0a08;
     --border: #27272a;
     --input: #27272a;
-    --ring: #d4d4d8;
+    --ring: #e8b84a;
   }
 }
 
@@ -102,7 +117,22 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground antialiased selection:bg-primary/10;
+    @apply bg-background text-foreground antialiased selection:bg-vu/30 selection:text-foreground;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

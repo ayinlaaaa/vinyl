@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Loader2, MapPin } from "lucide-react";
+import { Loader2, MapPin } from "lucide-react";
+import StatusMessage from "@/app/components/StatusMessage";
 import { updateTimezone } from "@/app/actions/settings";
 import { detectBrowserTimezone } from "@/lib/timezone";
 
@@ -66,12 +67,8 @@ export default function TimezoneSettings({ initialTimezone }: { initialTimezone:
       <p className="text-[10px] font-mono text-muted-foreground">
         Use a named zone like Europe/London rather than a fixed UTC offset so daylight-saving changes stay accurate.
       </p>
-      {status && (
-        <p className="flex items-center gap-2 text-sm text-emerald-500">
-          <CheckCircle2 className="w-4 h-4" /> {status}
-        </p>
-      )}
-      {error && <p className="text-sm text-rose-400" role="alert">{error}</p>}
+      {status && <StatusMessage type="success">{status}</StatusMessage>}
+      {error && <StatusMessage type="error">{error}</StatusMessage>}
     </section>
   );
 }
