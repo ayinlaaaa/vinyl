@@ -4,9 +4,12 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { Search, Disc, Play } from "lucide-react";
 import type { ListeningEvent } from "@/lib/listening";
+import DataQualityNotice from "@/app/components/DataQualityNotice";
 
-export default function HistoryList({ initialEvents }: { initialEvents: ListeningEvent[] }) {
+export default function HistoryList({ initialEvents, timezone }: { initialEvents: ListeningEvent[]; timezone?: string }) {
   const [searchTerm, setSearchTerm] = useState("");
+  const estimatedCount = initialEvents.filter((event) => event.timestampEstimated || event.provider === "apple").length;
+  const verifiedCount = initialEvents.length - estimatedCount;
 
   const filteredHistory = initialEvents.filter(event => 
     event.trackName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -15,6 +18,7 @@ export default function HistoryList({ initialEvents }: { initialEvents: Listenin
 
   return (
     <div className="space-y-8">
+      <DataQualityNotice estimatedCount={estimatedCount} verifiedCount={verifiedCount} timezone={timezone} />
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground mb-2">Full Journal</p>

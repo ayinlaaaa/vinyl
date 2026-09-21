@@ -2,6 +2,7 @@ import { Play, Music, Clock, Disc, Database, Globe, Lock } from "lucide-react";
 import { formatMinutes } from "@/lib/analytics";
 import { getDashboardData } from "@/lib/data-service";
 import DashboardCharts from "@/app/dashboard/components/DashboardCharts";
+import DataQualityNotice from "@/app/components/DataQualityNotice";
 import Link from "next/link";
 import { db } from "@/db";
 import { recaps } from "@/db/schema";
@@ -43,6 +44,14 @@ export default async function DashboardPage() {
           />
         </div>
       </div>
+
+      {!isMock && (
+        <DataQualityNotice
+          estimatedCount={stats.estimatedTimestampCount}
+          verifiedCount={stats.verifiedTimestampCount}
+          timezone={stats.timezone}
+        />
+      )}
 
       {/* Wrapped CTA */}
       <Link 

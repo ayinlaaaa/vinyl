@@ -1,8 +1,17 @@
 # VINYL — Project Status
 
-_Initial audit: 2026-09-16 against commit `6c8e0e5`. Updated after **Phase 9 Part 1** on the same day._
+_Initial audit: 2026-09-16 against commit `6c8e0e5`. Updated after **Phase 10 — Analytics accuracy**._
 
 ## 0. Changelog
+
+### Phase 10 — Analytics accuracy ✅
+
+- Accounts now store an IANA timezone (captured in the browser during sign-up and editable in Settings); weekday/hour buckets, yearly recap boundaries, and listening vibe use that timezone.
+- Last.fm sync paginates `user.getrecenttracks` with a `from` boundary and backfills until the previous sync timestamp.
+- Ingested artists and tracks carry canonical keys so casing and common release suffixes such as `(Remastered 2009)` and `- Radio Edit` do not split top lists.
+- Dashboard, history, and recap use the same estimated-versus-verified timestamp notice; Apple Music remains explicitly estimated.
+- Sign-in and sign-up have process-local IP and email rate limits.
+- Added the Phase 10 schema migration and unit coverage for normalization and timezone boundaries.
 
 ### Phase 9 Part 2 — Authentication & account boundaries (2026-09-16) ✅
 
@@ -13,7 +22,7 @@ _Initial audit: 2026-09-16 against commit `6c8e0e5`. Updated after **Phase 9 Par
 - Guest mode gated behind `ALLOW_GUEST_LOGIN=true` (development only).
 - First real Drizzle migration generated (`drizzle/0000_init.sql`); `db:generate` / `db:migrate` scripts.
 - 9 new unit tests (password, crypto); an end-to-end flow (sign-up → data isolation → guest → sign-out → replayed cookie rejected) was run against the real database.
-- Not included: email verification, password reset, rate limiting / lockout, "remember me" choice, account deletion UI.
+- Not included: email verification, password reset / recovery, "remember me" choice, account deletion UI.
 
 ### Phase 9 Part 1 — Production Hardening: data integrity & correctness (2026-09-16) ✅
 
@@ -35,7 +44,7 @@ Fixed (all verified against a real PostgreSQL database):
 - Repo hygiene: `.gitignore`, `.env.example`, `README.md`, `drizzle.config.ts` reads `DATABASE_URL`, `package-lock.json` committed, package renamed to `vinyl`.
 - Tooling: ESLint 0 errors, `tsc` 0 errors, `next build` passes, **Vitest added with 20 unit tests** (`npm test`).
 
-Not yet done (see §8 for the updated plan): authentication, encrypted token storage, timezone handling, Last.fm backfill pagination, amber accent / responsive sidebar.
+Not yet done (see §8 for the updated plan): password recovery, email verification, amber accent / responsive sidebar, and CI.
 
 This document records what **actually exists and works** in the VINYL repository, verified by
 reading every source file, running the type checker, linter, dev server and a local PostgreSQL
@@ -61,7 +70,7 @@ repository.** The real stack is:
 | Icons | lucide-react | |
 | Database | **PostgreSQL** via `pg` + **Drizzle ORM 0.45** | Not Supabase. Schema pushed with `drizzle-kit push` |
 | Auth | **Email + password, server-side sessions** (P9.2) | scrypt, httpOnly cookie, `requireUser()` on every page/action. Optional dev-only guest mode. |
-| Tests | **Vitest** | 29 unit tests: import normalisation, dedup keys, analytics, password hashing, token encryption |
+| Tests | **Vitest** | 34 unit tests: import normalisation, dedup keys, analytics, timezone, name normalisation, password hashing, token encryption |
 | CI / Docker / deploy config | **None** | |
 
 The original upload had no `.gitignore`, README, `.env.example` or lockfile, and the Git history
@@ -107,7 +116,7 @@ Legend: ✅ verified working · ⚠️ partially working / has bugs · ❌ broke
 | `clearAllData` | ✅ **[fixed P9.1]** | Was: Runs raw `DELETE FROM listening_history` with **no user filter** — deletes every user's history. Also does not clear providers or recaps despite the UI saying it will. |
 | Multi-user isolation | ✅ **[fixed P9.1]** | Was: `getDashboardData`, `getHistoryData`, `getCollectionData` query `listening_history` **without a `userId` filter**. Harmless today (single guest user) but must be fixed before any auth is added. |
 | Spotify provider | ❔ | OAuth code flow, refresh, `recently-played` (max 50 items per call — this is a real Spotify API limit, so full history is impossible without file import). Refresh handler read `expires_at` instead of `expires_in` **[fixed P9.1]**. OAuth `state` added **[P9.1]**. |
-| Last.fm provider | ❔ | Username-based, needs `LASTFM_API_KEY`. Fetches 100 most recent scrobbles only (no pagination / backfill). **Last.fm gives no track duration, so `durationMs` is `NULL`** → listening-time totals silently under-count Last.fm users. Whole raw track object is stored in `metadata`. |
+| Last.fm provider | ❔ | Username-based, needs `LASTFM_API_KEY`. Sync paginates and backfills to the previous sync boundary. **Last.fm gives no track duration, so `durationMs` is `NULL`** → listening-time totals are labelled as a minimum. |
 | Apple Music provider | ⚠️ (inherent API limit) | Uses MusicKit JS + `me/recent/played/tracks`. **That endpoint returns no play timestamps**; the code stamps every track with `new Date()` and a `Date.now()`-based external id, so every sync fabricates "played now" events and dedup only checks by track *name*. Analytics from this source are **not trustworthy** and this should be labelled as such in the UI. Developer token is a static env var (no JWT signing). |
 | Recaps (save / toggle public) | ⚠️ | Save + toggle work. `recaps.data` is cast `as any`. Public viewing is broken (see `/recap/[id]` above). |
 
@@ -115,7 +124,7 @@ Legend: ✅ verified working · ⚠️ partially working / has bugs · ❌ broke
 
 - Plays = row count; minutes = `sum(duration_ms)`. Both **count every row equally**, so duplicate imports and Apple "fake now" rows inflate numbers.
 - `getStats` is imported from `mock-data.ts` and used for real data too — naming is misleading.
-- Weekly chart buckets by day-of-week in **server timezone** (`format(playedAt,"EEE")`); no user timezone handling.
+- Weekly chart buckets, hourly activity, and recap vibe use the account's IANA timezone.
 - Listening time on the dashboard is rounded to whole hours; recap rounds to minutes. Neither distinguishes "estimated" from "verified" and neither flags rows with missing duration.
 - Track identity uses the string key `"track - artist"` and then `split(" - ")[0]`, which breaks for any title containing `" - "` (e.g. remixes).
 - "Listening Vibe" is computed from peak hour in server time.
@@ -138,7 +147,7 @@ Legend: ✅ verified working · ⚠️ partially working / has bugs · ❌ broke
 | `eslint .` | ✅ 0 errors **[fixed P9.1]** — was 5 errors: 4× `react/no-unescaped-entities` (landing page, Last.fm card, Wrapped story), 1× `react-hooks/error-boundaries` in `dashboard/wrapped/page.tsx` (JSX constructed inside `try/catch`). |
 | `next build` | ✅ passes **[fixed P9.1 — fonts self-hosted]** — previously failed in this sandbox because `next/font/google` cannot reach `fonts.googleapis.com`. On a machine with internet it would build, but this is a real production risk: a Google Fonts outage would break deploys. Self-hosting the three fonts removes the dependency. |
 | `next dev` | ✅ Runs; falls back to system fonts. |
-| Tests | ✅ 20 Vitest unit tests **[added P9.1]** |
+| Tests | ✅ 34 Vitest unit tests **[expanded P10]** |
 
 ---
 
@@ -171,32 +180,21 @@ Legend: ✅ verified working · ⚠️ partially working / has bugs · ❌ broke
 ## 6. Database / auth / deployment readiness
 
 - **Database:** Schema is sound but incomplete for production: no indexes on `(user_id, played_at)`, no unique constraint for dedup, no migrations folder (uses `push`).
-- **Authentication:** Implemented (P9.2). Missing for a public launch: password reset, email verification, rate limiting.
-- **Deployment:** Close. Remaining: rate limiting on auth endpoints, CI workflow, a production migration run (`npm run db:migrate`), and setting `TOKEN_ENCRYPTION_KEY`. No Dockerfile yet.
+- **Authentication:** Implemented (P9.2) with email/password, sessions, and auth rate limits. Missing for a public launch: password reset and email verification.
+- **Deployment:** Close. Remaining: CI workflow, a production migration run (`npm run db:migrate`), and setting `TOKEN_ENCRYPTION_KEY`. No Dockerfile yet.
 
 ---
 
-## 7. Known issues (remaining after Phase 9 Part 2)
+## 7. Known issues (remaining after Phase 10)
 
-1. **No rate limiting / lockout** on sign-in — brute force is slowed only by scrypt cost. Add before public launch.
-2. **No password reset or email verification** — requires an email provider (not yet chosen).
-3. Weekday / hour buckets and the "listening vibe" use the **server's** timezone, not the user's.
-4. Last.fm sync fetches only the latest 200 scrobbles; no backfill pagination.
-5. Apple Music can never provide real play history (API limitation) — labelled, but consider hiding behind an "experimental" flag.
-6. Collection page "Sort" button does nothing; dashboard is not usable on small screens (fixed 256 px sidebar).
-7. `/api/og/recap` social image endpoint does not exist.
-8. Design: amber accent from "The Archive" brief still unused; success/error states use generic emerald/rose.
-9. No account-deletion UI (the "Clear All Data" button removes data but keeps the account).
-10. No CI workflow runs `npm run check` on push.
+1. **No password reset or email verification** — requires an email provider (not yet chosen).
+2. Apple Music can never provide real play history (API limitation) — labelled, but consider hiding behind an "experimental" flag.
+3. Collection page "Sort" button does nothing; dashboard is not usable on small screens (fixed 256 px sidebar).
+4. `/api/og/recap` social image endpoint does not exist.
+5. Design: amber accent from "The Archive" brief still unused; success/error states use generic emerald/rose.
+6. No account-deletion UI (the "Clear All Data" button removes data but keeps the account).
+7. No CI workflow runs `npm run check` on push.
 
-## 8. Recommended next milestone: **Phase 10 — Analytics accuracy**
+## 8. Recommended next milestone: **Phase 11 — Wrapped polish**
 
-With data integrity and accounts in place, the numbers themselves are the next trust issue:
-
-1. Store the user's IANA timezone on the account (captured from the browser on sign-up, editable in settings); compute weekday/hour buckets and the recap "vibe" in that zone.
-2. Last.fm backfill: paginate `user.getrecenttracks` with `from`/`page` until the last synced timestamp so long-time scrobblers get their full history.
-3. Artist/track normalisation: trim, unify casing and common suffixes (`(Remastered 2009)`, `- Radio Edit`) into a display-name + canonical-key pair so top lists don't split.
-4. Surface "estimated vs verified" in one consistent component used by dashboard, recap and history.
-5. Add rate limiting to sign-in/sign-up (small, but cheap to do alongside).
-
-After that: **Phase 11 — Wrapped polish** (amber accent, responsive layout, reduced-motion, OG images), then **Phase 12 — Public profiles & privacy controls**.
+With data integrity, account boundaries, and analytics accuracy in place, the next milestone is presentation and sharing: amber accent, responsive layout, reduced-motion support, OG images, and then public profiles and privacy controls.

@@ -1,8 +1,9 @@
 import { db } from "@/db";
-import { listeningHistory } from "@/db/schema";
-import { eq, and, gte, lt } from "drizzle-orm";
+import { listeningHistory, users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { computeStats, peakHour } from "./analytics";
 import { rowToEvent } from "./data-service";
+import { getZonedDateParts } from "./timezone";
 
 export interface WrappedData {
   timePeriod: string;
@@ -18,6 +19,9 @@ export interface WrappedData {
   sources: string[];
   /** True if any Apple Music rows are included (their timestamps are estimates). */
   containsEstimatedTimestamps: boolean;
+  estimatedTimestampCount: number;
+  verifiedTimestampCount: number;
+  timezone: string;
 }
 
 /** A recap needs at least this many plays to be meaningful. */
@@ -32,25 +36,25 @@ export function describeVibe(hour: number | null): string {
 }
 
 /**
- * Build the yearly recap for one user. Returns `null` when there is not enough data,
- * so callers can render an empty state instead of catching exceptions.
+ * Build the yearly recap for one user. Calendar years are evaluated in the user's
+ * timezone, rather than in the server's timezone.
  */
 export async function generateWrappedData(userId: string, year: number): Promise<WrappedData | null> {
-  const start = new Date(year, 0, 1);
-  const end = new Date(year + 1, 0, 1);
+  const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  if (!user) return null;
 
+  // Query this user's rows first, then apply the calendar-year boundary in the IANA
+  // timezone. This avoids hand-rolling DST-aware UTC boundary arithmetic.
   const rows = await db.query.listeningHistory.findMany({
-    where: and(
-      eq(listeningHistory.userId, userId),
-      gte(listeningHistory.playedAt, start),
-      lt(listeningHistory.playedAt, end)
-    ),
+    where: eq(listeningHistory.userId, userId),
   });
+  const events = rows
+    .map(rowToEvent)
+    .filter((event) => getZonedDateParts(event.playedAt, user.timezone).year === year);
 
-  if (rows.length < MIN_PLAYS_FOR_RECAP) return null;
+  if (events.length < MIN_PLAYS_FOR_RECAP) return null;
 
-  const events = rows.map(rowToEvent);
-  const stats = computeStats(events, 5);
+  const stats = computeStats(events, 5, user.timezone);
   const sources = [...new Set(events.map((e) => e.provider))].sort();
 
   return {
@@ -63,6 +67,9 @@ export async function generateWrappedData(userId: string, year: number): Promise
     listeningVibe: describeVibe(peakHour(stats.hourlyActivity)),
     uniqueArtists: stats.uniqueArtists,
     sources,
-    containsEstimatedTimestamps: sources.includes("apple"),
+    containsEstimatedTimestamps: stats.estimatedTimestampCount > 0,
+    estimatedTimestampCount: stats.estimatedTimestampCount,
+    verifiedTimestampCount: stats.verifiedTimestampCount,
+    timezone: user.timezone,
   };
 }

@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { Loader2, AlertCircle, Disc } from "lucide-react";
 import { signIn, signUp, signInAsGuest, type AuthFormState } from "@/app/actions/auth";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/password";
+import { detectBrowserTimezone } from "@/lib/timezone";
 
 const initial: AuthFormState = {};
 
@@ -12,6 +13,9 @@ export default function AuthForm({ mode, next, guestAllowed }: { mode: "login" |
   const action = mode === "login" ? signIn : signUp;
   const [state, formAction, pending] = useActionState(action, initial);
   const [guestState, guestAction, guestPending] = useActionState(signInAsGuest, initial);
+  const [timezone] = useState(() =>
+    typeof window === "undefined" ? "UTC" : detectBrowserTimezone()
+  );
   const error = state.error ?? guestState.error;
 
   const field = "w-full bg-secondary/40 border border-border px-4 py-3 text-sm outline-none focus:border-foreground/60 transition-colors";
@@ -38,6 +42,7 @@ export default function AuthForm({ mode, next, guestAllowed }: { mode: "login" |
 
       <form action={formAction} className="space-y-6">
         {next && <input type="hidden" name="next" value={next} />}
+        {mode === "signup" && <input type="hidden" name="timezone" value={timezone} />}
         {mode === "signup" && (
           <div>
             <label htmlFor="name" className={label}>Name <span className="opacity-50">(optional)</span></label>

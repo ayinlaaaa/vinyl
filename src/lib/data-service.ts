@@ -3,6 +3,7 @@ import { listeningHistory, recaps } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { generateMockHistory } from "./mock-data";
 import { computeStats } from "./analytics";
+import { normalizeMusicName, normalizeMusicPair } from "./music-normalizer";
 import type { ListeningEvent, ListeningSource } from "./listening";
 import { requireUser } from "./auth/current-user";
 
@@ -10,6 +11,11 @@ type HistoryRow = typeof listeningHistory.$inferSelect;
 
 /** Convert a DB row into the shared ListeningEvent shape. */
 export function rowToEvent(row: HistoryRow): ListeningEvent {
+  const normalized = normalizeMusicPair(row.artistName, row.trackName);
+  const metadata = row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+    ? row.metadata as Record<string, unknown>
+    : null;
+
   return {
     id: row.id,
     trackName: row.trackName,
@@ -18,6 +24,9 @@ export function rowToEvent(row: HistoryRow): ListeningEvent {
     playedAt: row.playedAt,
     durationMs: row.durationMs,
     provider: row.provider as ListeningSource,
+    artistKey: row.artistKey || normalized.artist.canonicalKey,
+    trackKey: row.trackKey || normalized.track.canonicalKey,
+    timestampEstimated: metadata?.timestampEstimated === true || row.provider === "apple",
   };
 }
 
@@ -36,10 +45,10 @@ export async function getDashboardData() {
 
   if (events.length === 0) {
     const mock = generateMockHistory(7);
-    return { stats: computeStats(mock), recent: mock.slice(0, 4), isMock: true };
+    return { stats: computeStats(mock, 5, user.timezone), recent: mock.slice(0, 4), isMock: true };
   }
 
-  return { stats: computeStats(events), recent: events.slice(0, 4), isMock: false };
+  return { stats: computeStats(events, 5, user.timezone), recent: events.slice(0, 4), isMock: false };
 }
 
 export async function getHistoryData() {
@@ -47,9 +56,9 @@ export async function getHistoryData() {
   const events = await loadUserEvents(user.id, 100);
 
   if (events.length === 0) {
-    return { events: generateMockHistory(14), isMock: true };
+    return { events: generateMockHistory(14), isMock: true, timezone: user.timezone };
   }
-  return { events, isMock: false };
+  return { events, isMock: false, timezone: user.timezone };
 }
 
 export async function getCollectionData() {
@@ -57,12 +66,16 @@ export async function getCollectionData() {
   const events = await loadUserEvents(user.id);
   const source = events.length === 0 ? generateMockHistory(90) : events;
 
-  const artistMap = new Map<string, number>();
-  for (const e of source) artistMap.set(e.artistName, (artistMap.get(e.artistName) ?? 0) + 1);
+  const artistMap = new Map<string, { name: string; count: number }>();
+  for (const e of source) {
+    const normalized = normalizeMusicName(e.artistName);
+    const existing = artistMap.get(e.artistKey || normalized.canonicalKey);
+    if (existing) existing.count++;
+    else artistMap.set(e.artistKey || normalized.canonicalKey, { name: normalized.displayName, count: 1 });
+  }
 
   return {
-    artists: [...artistMap.entries()]
-      .map(([name, count]) => ({ name, count }))
+    artists: [...artistMap.values()]
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
     isMock: events.length === 0,
   };

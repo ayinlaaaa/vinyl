@@ -3,7 +3,7 @@ import HistoryList from "./HistoryList";
 import { Database } from "lucide-react";
 
 export default async function HistoryPage() {
-  const { events, isMock } = await getHistoryData();
+  const { events, isMock, timezone } = await getHistoryData();
 
   return (
     <div className="p-8 md:p-12 space-y-8 max-w-7xl mx-auto">
@@ -15,7 +15,7 @@ export default async function HistoryPage() {
           <a href="/dashboard/settings" className="text-[10px] uppercase tracking-widest font-bold underline">Import Your Data</a>
         </div>
       )}
-      <HistoryList initialEvents={events} />
+      <HistoryList initialEvents={events} timezone={timezone} />
     </div>
   );
 }

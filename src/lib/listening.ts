@@ -15,6 +15,11 @@ export interface ListeningEvent {
   /** Milliseconds actually listened. `null` when the source does not report it (e.g. Last.fm). */
   durationMs: number | null;
   provider: ListeningSource;
+  /** Canonical values are optional for legacy rows and mock events. */
+  artistKey?: string;
+  trackKey?: string;
+  /** Apple Music has no play timestamp; its recorded time is an estimate. */
+  timestampEstimated?: boolean;
 }
 
 /** The row shape we insert into `listening_history` (minus DB-generated columns). */
@@ -29,6 +34,8 @@ export interface NewListeningRow {
   durationMs: number | null;
   externalId: string;
   metadata: Record<string, unknown> | null;
+  artistKey: string;
+  trackKey: string;
 }
 
 /**

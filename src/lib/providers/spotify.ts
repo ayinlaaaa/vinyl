@@ -1,4 +1,5 @@
 import { buildExternalId, type NewListeningRow } from "../listening";
+import { normalizeMusicPair } from "../music-normalizer";
 
 export interface SpotifyTrack {
   track: {
@@ -37,13 +38,14 @@ export function normalizeSpotifyTrack(item: SpotifyTrack, userId: string): NewLi
   // Spotify lists the primary artist first; we keep only that one so an artist's
   // play count is not split across every "feat." combination.
   const artistName = track.artists[0]?.name ?? "Unknown Artist";
+  const normalized = normalizeMusicPair(artistName, track.name);
   const albumArt = track.album.images[0]?.url || null;
 
   return {
     userId,
     provider: "spotify",
-    trackName: track.name,
-    artistName,
+    trackName: normalized.track.displayName,
+    artistName: normalized.artist.displayName,
     albumName: track.album.name,
     albumArtUrl: albumArt,
     playedAt: new Date(item.played_at),
@@ -53,6 +55,8 @@ export function normalizeSpotifyTrack(item: SpotifyTrack, userId: string): NewLi
       trackId: track.id,
       allArtists: track.artists.map((a) => a.name),
     },
+    artistKey: normalized.artist.canonicalKey,
+    trackKey: normalized.track.canonicalKey,
   };
 }
 

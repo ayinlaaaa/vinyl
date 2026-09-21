@@ -1,4 +1,5 @@
 import { buildExternalId, type NewListeningRow } from "../listening";
+import { normalizeMusicPair } from "../music-normalizer";
 
 export interface AppleMusicTrack {
   id: string;
@@ -49,19 +50,22 @@ export async function getRecentlyPlayed(developerToken: string, musicUserToken: 
  */
 export function normalizeAppleTrack(track: AppleMusicTrack, userId: string, syncedAt: Date): NewListeningRow {
   const attr = track.attributes;
+  const normalized = normalizeMusicPair(attr.artistName, attr.name);
   const albumArt = attr.artwork?.url?.replace("{w}", "400")?.replace("{h}", "400") || null;
   const day = syncedAt.toISOString().slice(0, 10);
 
   return {
     userId,
     provider: "apple",
-    trackName: attr.name,
-    artistName: attr.artistName,
+    trackName: normalized.track.displayName,
+    artistName: normalized.artist.displayName,
     albumName: attr.albumName || null,
     albumArtUrl: albumArt,
     playedAt: syncedAt,
     durationMs: attr.durationInMillis ?? null,
     externalId: buildExternalId("apple", [day, track.id]),
     metadata: { appleId: track.id, timestampEstimated: true },
+    artistKey: normalized.artist.canonicalKey,
+    trackKey: normalized.track.canonicalKey,
   };
 }
